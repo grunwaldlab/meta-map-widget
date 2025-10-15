@@ -32,6 +32,7 @@
     "serve": "npx http-server -o demo/index.html"
   },
   "dependencies": {
+    "leaflet": "^1.9.4"
   },
   "devDependencies": {
     "http-server": "^14.1.1",

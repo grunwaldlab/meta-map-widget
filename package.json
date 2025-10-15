@@ -1,0 +1,41 @@
+{
+  "name": "ps-leaflet-map-widget",
+  "version": "0.1.0",
+  "description": "Map widget for the PathogenSurviellance pipeline",
+  "homepage": "https://github.com/grunwaldlab/ps-leaflet-map-widget#readme",
+  "bugs": {
+    "url": "https://github.com/grunwaldlab/ps-leaflet-map-widget/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grunwaldlab/ps-leaflet-map-widget.git"
+  },
+  "license": "MIT",
+  "author": "Zachary Stephen Longiaru Foster, Claire Worthy",
+  "type": "module",
+  "main": "./dist/ps-leaflet-map-widget.umd.js",
+  "module": "./dist/ps-leaflet-map-widget.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/ps-leaflet-map-widget.es.js",
+      "require": "./dist/ps-leaflet-map-widget.umd.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "dev": "vite build --watch --mode development",
+    "build": "vite build",
+    "prepublishOnly": "npm run build",
+    "serve": "npx http-server -o demo/index.html"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "vite": "^7.1.6",
+    "vitest": "^3.2.4"
+  }
+}

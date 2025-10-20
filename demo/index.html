@@ -120,10 +120,13 @@ function interpRgb(aRgb, bRgb, t){
     if (!latCol || !lonCol) { console.error('lat/lon not found'); return; }
 
     const numericCols = detectNumeric(rows, cols).filter(c=>c!==latCol && c!==lonCol);
-    const sizeVar = numericCols.length ? numericCols[0] : null;
+    const sizeVar = numericCols.length > 0 ? numericCols[0] : null;
     let colorVar = null;
-    if (sizeVar) colorVar = numericCols.find(c=>c!==sizeVar) || cols.find(c=>c!==latCol && c!==lonCol && c!==sizeVar);
-    else colorVar = cols.find(c=>c!==latCol && c!==lonCol);
+      if (sizeVar != null) {
+        colorVar = cols.find(c => c!==latCol && c!==lonCol && c!==sizeVar);
+      } else{
+        colorVar = cols.find(c=>c!==latCol && c!==lonCol);
+      };
 
     // prepare scales
     let sizeMin,sizeMax,colorMin,colorMax,colorIsContinuous=false,catMap={};

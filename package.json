@@ -32,11 +32,13 @@
     "serve": "npx http-server -o demo/index.html"
   },
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3"
   },
   "devDependencies": {
     "http-server": "^14.1.1",
-    "vite": "^7.1.6",
+    "vite": "^7.1.11",
     "vitest": "^3.2.4"
-  }
+  },
+  "keywords": []
 }

@@ -2,201 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Map widget demo</title>
+  <title>PSMapWidget demo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>html,body,#map{height:100%;margin:0;padding:0}body{height:100vh}</style>
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- <script type="module">
-        import { PSMapWidget } from '../dist/ps-leaflet-map-widget.es.js'; </script> -->
-<!--  -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster-src.js"></script>
 
-<script>
-    // generate sample metadata (includes latitude & longitude)
-  function generateSampleMetadata(n = 60) {
-    const types = ['urban','rural','coastal','suburban'];
-    const rows = [];
+<script type="module">
+    import { PSMapWidget } from '../src/index.js';
+
+// generate TSV string from random sample metadata
+function generateTSV(n = 120) {
+  const headers = ['sample_id','latitude','longitude','proportion_infected','location_type','temperature','color_by'];
+  const types = ['urban','rural','coastal','suburban'];
+  const rows = [headers.join('\t')];
+  const colorByList = ['proportion_infected;temperature;location_type'].join(';'); // example color_by value
     for (let i = 0; i < n; i++) {
-      const lat = (Math.random() * 140) - 70;            // -70 .. +70
-      const lon = (Math.random() * 360) - 180;          // -180 .. +180
-      const proportion_infected = +(Math.random() * 0.6).toFixed(3); // 0..0.6
-      const temperature = +(Math.random() * 40 - 10).toFixed(1);     // -10 .. +30
-      const location_type = types[Math.floor(Math.random() * types.length)];
-      rows.push({
-        sample_id: 'S' + String(i+1).padStart(3,'0'),
-        latitude: lat,
-        longitude: lon,
-        proportion_infected,
-        location_type,
-        temperature
-      });
-    }
-    return rows;
-  }
-
-// helpers
-  function findLatLonCols(cols){
-    const l = c=>c.toLowerCase();
-    const latCandidates=['lat','latitude','y'];
-    const lonCandidates=['lon','lng','longitude','x'];
-    return {
-      lat: cols.find(c=>latCandidates.includes(l(c))),
-      lon: cols.find(c=>lonCandidates.includes(l(c)))
-    };
-  }
-  function detectNumeric(rows, cols, thresh=0.8){
-    return cols.filter(col=>{
-      let num=0, tot=0;
-      for(const r of rows){
-        const v = r[col];
-        if (v === '' || v === undefined){ tot++; continue; }
-        tot++;
-        if (!Number.isNaN(Number(v))) num++;
+        const lat = ((Math.random() * 140) - 70).toFixed(6);
+        const lon = ((Math.random() * 360) - 180).toFixed(6);
+        const proportion = (Math.random() * 0.6).toFixed(3);
+        const temp = (Math.random() * 40 - 10).toFixed(1);
+        const type = types[Math.floor(Math.random() * types.length)];
+        const id = 'S' + String(i+1).padStart(4,'0');
+        const line = [id, lat, lon, proportion, type, temp, 'proportion_infected;temperature;location_type'].join('\t');
+        rows.push(line);
       }
-      return tot>0 && (num/tot)>=thresh;
-    });
-  }
-
-function scaleRange(v,min,max,minR=4,maxR=18){
-    if (isNaN(v) || min==null || max==null) return (minR+maxR)/2;
-    if (max===min) return (minR+maxR)/2;
-    const t = (v-min)/(max-min);
-    return minR + t*(maxR-minR);
-  }
-
-  // color utilities
-  const VIRIDIS = ['#440154','#482777','#3f4a8a','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'];
-  const CATEGORICAL = ['#1f78b4','#33a02c','#e31a1c','#ff7f00','#6a3d9a','#b15928'];
-
-  function hexToRgb(hex){
-    const h = hex.replace('#','');
-    const bigint = parseInt(h, 16);
-    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
-  }
-  function rgbToHex(r,g,b){
-    return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
-  }
-
-function interpRgb(aRgb, bRgb, t){
-    return [
-      Math.round(aRgb[0] + (bRgb[0] - aRgb[0]) * t),
-      Math.round(aRgb[1] + (bRgb[1] - aRgb[1]) * t),
-      Math.round(aRgb[2] + (bRgb[2] - aRgb[2]) * t)
-    ];
-  }
-
-// sample viridis palette (t in [0,1])
-  function viridisAt(t){
-    t = Math.max(0, Math.min(1, t));
-    const n = VIRIDIS.length;
-    const idx = t * (n - 1);
-    const lo = Math.floor(idx), hi = Math.min(n - 1, Math.ceil(idx));
-    const localT = idx - lo;
-    const rgbLo = hexToRgb(VIRIDIS[lo]), rgbHi = hexToRgb(VIRIDIS[hi]);
-    const rgb = interpRgb(rgbLo, rgbHi, localT);
-    return rgbToHex(rgb[0], rgb[1], rgb[2]);
-  }
-
-  function buildPopupHtml(props){
-    let html = '<table>';
-    for(const k of Object.keys(props)) html += `<tr><th style="text-align:left;padding-right:8px">${k}</th><td>${props[k]}</td></tr>`;
-    html += '</table>';
-    return html;
-  }
-
-// main rendering using Leaflet functions
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const map = L.map('map').setView([10,0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
-
-    const rows = generateSampleMetadata(80);
-    if (!rows.length) return;
-
-    const cols = Object.keys(rows[0]);
-    const { lat: latCol, lon: lonCol } = findLatLonCols(cols);
-    if (!latCol || !lonCol) { console.error('lat/lon not found'); return; }
-
-    const numericCols = detectNumeric(rows, cols).filter(c=>c!==latCol && c!==lonCol);
-    const sizeVar = numericCols.length > 0 ? numericCols[0] : null;
-    let colorVar = null;
-      if (sizeVar != null) {
-        colorVar = cols.find(c => c!==latCol && c!==lonCol && c!==sizeVar);
-      } else{
-        colorVar = cols.find(c=>c!==latCol && c!==lonCol);
-      };
-
-    // prepare scales
-    let sizeMin,sizeMax,colorMin,colorMax,colorIsContinuous=false,catMap={};
-    if (sizeVar) {
-      const vals = rows.map(r=>Number(r[sizeVar])).filter(v=>!isNaN(v));
-      sizeMin = Math.min(...vals); sizeMax = Math.max(...vals);
-    }
-    if (colorVar) {
-      if (numericCols.includes(colorVar)) {
-        colorIsContinuous = true;
-        const vals = rows.map(r=>Number(r[colorVar])).filter(v=>!isNaN(v));
-        colorMin = Math.min(...vals); colorMax = Math.max(...vals);
-      } else {
-        const cats = Array.from(new Set(rows.map(r=>String(r[colorVar]))));
-        cats.slice(0, CATEGORICAL.length).forEach((c,i)=>catMap[c]=CATEGORICAL[i]);
-      }
+      return rows.join('\n');
     }
 
-    // GeoJSON features
-    const features = rows.map(r=>{
-      const lat = Number(r[latCol]), lon = Number(r[lonCol]);
-      if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
-      return { type:'Feature', geometry:{ type:'Point', coordinates:[lon, lat] }, properties: r };
-    }).filter(Boolean);
-    const geo = { type:'FeatureCollection', features };
+const tsv = generateTSV(150);
+    // instantiate widget
+    const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 });
 
-    const geoLayer = L.geoJSON(geo, {
-      pointToLayer: (feature, latlng) => {
-        const p = feature.properties;
-        const radius = sizeVar ? scaleRange(Number(p[sizeVar]), sizeMin, sizeMax) : 6;
-        let fill = '#3388ff';
-        if (colorVar) {
-          if (colorIsContinuous && !isNaN(Number(p[colorVar]))) {
-            const t = (Number(p[colorVar]) - colorMin) / ((colorMax - colorMin) || 1);
-            fill = viridisAt(Math.max(0, Math.min(1, t)));
-          } else {
-            fill = catMap[String(p[colorVar])] || '#cccccc';
-          }
-        }
-        return L.circleMarker(latlng, { radius, color:'#000', weight:0.5, fillColor: fill, fillOpacity: 0.9 });
-      },
-      onEachFeature: (feature, layer) => {
-        layer.bindPopup(buildPopupHtml(feature.properties));
-      }
-    }).addTo(map);
-    const bounds = geoLayer.getBounds();
-    if (bounds.isValid()) map.fitBounds(bounds, { padding:[20,20] });
-
-    // legend (viridis gradient for continuous)
-    const legend = L.control({ position: 'bottomright' });
-    legend.onAdd = function(){
-      const div = L.DomUtil.create('div', 'info legend');
-      div.style.background = 'white';
-      div.style.padding = '6px';
-      div.style.fontSize = '12px';
-      if (colorVar) {
-        if (colorIsContinuous) {
-          // create small gradient bar using inline background gradient across viridis stops
-          const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
-          div.innerHTML = `<b>${colorVar} (continuous)</b><br><div style="height:10px;width:140px;background:${grad};margin:6px 0;border:1px solid #999"></div><div style="font-size:11px;display:flex;justify-content:space-between"><span>${colorMin}</span><span>${colorMax}</span></div>`;
-        } else {
-          div.innerHTML = `<b>${colorVar} (categories)</b><br>` + Object.keys(catMap).map(k=>`<div style="display:flex;align-items:center;margin:3px 0"><i style="background:${catMap[k]};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${k}</div>`).join('');
-        }
-      } else div.innerHTML = '<b>No color variable</b>';
-      return div;
-    };
-    legend.addTo(map);
-    console.log('Rendered', rows.length, 'points. sizeVar=', sizeVar, 'colorVar=', colorVar);
-  });
-
-</script>
+    // optional: expose widget for debugging
+    window.__PSMapWidget = widget;
+  </script>
 </body>
 </html>

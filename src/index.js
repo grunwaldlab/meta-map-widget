@@ -36,7 +36,8 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
     console.log('Color by list:', colorByList);
 
     // detect numeric columns across the dataset
-    const numericCols = detectNumericColumns(rows, Object.keys(rows[0]));
+    let numericCols = detectNumericColumns(rows, Object.keys(rows[0]));
+    numericCols = numericCols.filter(c => ![latitude, longitude].includes(c));
 
     // pick sizeVar: first numeric in colorByList (per AGENTS)
     const sizeVar = colorByList.find(c => numericCols.includes(c)) || null;
@@ -85,7 +86,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
   }).addTo(map);
 
   // build UI controls (two dropdowns) inside the container
-  const controlBox = buildControls(container, colorByList, sizeVar, colorVar, onSelectionChange);
+  const controlBox = buildControls(container, numericCols, colorByList, sizeVar, colorVar, onSelectionChange);
   container.prepend(controlBox);
 
   // marker cluster group (requires Leaflet.markercluster included on page)
@@ -209,7 +210,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
 
     // update legends
     updateLegend(container, selectedColorVar, selectedSizeVar, {
-      colorIsContinuous,
+      colorIsContinuous: numericColsLocal.includes(selectedColorVar),
       colorMin: localColorMin, colorMax: localColorMax,
       categoryMap: localCategoryMap,
       sizeMin: localSizeMin, sizeMax: localSizeMax
@@ -352,7 +353,7 @@ function createPieSvg(entries, radius) {
   return svg;
 }
 
-function buildControls(container, columns, initialSize, initialColor, onChange) {
+function buildControls(container, sizeColumns, colorColumns, initialSize, initialColor, onChange) {
   const box = document.createElement('div');
   box.style.position = 'absolute';
   box.style.top = '10px';
@@ -365,15 +366,50 @@ function buildControls(container, columns, initialSize, initialColor, onChange) 
   box.style.fontSize = '13px';
 
   // size select
-  const sizeLabel = document.createElement('label'); sizeLabel.textContent = 'Size: '; sizeLabel.style.marginRight = '6px';
-  const sizeSelect = document.createElement('select'); sizeSelect.id = 'ps-size-select';
-  const noneOpt = document.createElement('option'); noneOpt.value = ''; noneOpt.text = '— none —'; sizeSelect.appendChild(noneOpt);
-  columns.forEach(c => { const o = document.createElement('option'); o.value = c; o.text = c; if (c === initialSize) o.selected = true; sizeSelect.appendChild(o); });
+  const sizeLabel = document.createElement('label'); 
+  sizeLabel.textContent = 'Size: '; 
+  sizeLabel.style.marginRight = '6px';
+
+  const sizeSelect = document.createElement('select'); 
+  sizeSelect.id = 'ps-size-select';
+
+  const noneOpt = document.createElement('option'); 
+  noneOpt.value = ''; 
+  noneOpt.text = '— none —'; 
+  sizeSelect.appendChild(noneOpt);
+
+  sizeColumns.forEach(c => { 
+    const o = document.createElement('option'); 
+    o.value = c; 
+    o.text = c; 
+    if (c === initialSize) {
+      o.selected = true; 
+    }
+    sizeSelect.appendChild(o); 
+  });
 
   // color select
-  const colorLabel = document.createElement('label'); colorLabel.textContent = 'Color: '; colorLabel.style.marginLeft = '8px'; colorLabel.style.marginRight = '6px';
-  const colorSelect = document.createElement('select'); colorSelect.id = 'ps-color-select';
-  columns.forEach(c => { const o = document.createElement('option'); o.value = c; o.text = c; if (c === initialColor) o.selected = true; colorSelect.appendChild(o); });
+  const colorLabel = document.createElement('label'); 
+  colorLabel.textContent = 'Color: '; 
+  colorLabel.style.marginLeft = '8px'; 
+  colorLabel.style.marginRight = '6px';
+
+  const colorSelect = document.createElement('select'); 
+  colorSelect.id = 'ps-color-select';
+
+  const noneOptColor = document.createElement('option'); 
+  noneOptColor.value = ''; 
+  noneOptColor.text = '— none —'; 
+  colorSelect.appendChild(noneOptColor);
+
+  colorColumns.forEach(c => { 
+    const o = document.createElement('option'); 
+    o.value = c; o.text = c; 
+    if (c === initialColor) {
+      o.selected = true; 
+    }
+    colorSelect.appendChild(o); 
+  });
 
   sizeSelect.addEventListener('change', () => onChange(sizeSelect.value || null, colorSelect.value || null));
   colorSelect.addEventListener('change', () => onChange(sizeSelect.value || null, colorSelect.value || null));
@@ -425,3 +461,12 @@ function updateLegend(container, colorVar, sizeVar, meta) {
 
   container.appendChild(div);
 }
+
+// TODO
+// correct dropdown options - remove categorical variables from size dropdown
+// gradient pie chart for continuous variables
+// none option for color
+// remove colorby from popup
+// improve size legend
+// scalable color legend w/ tick marks
+

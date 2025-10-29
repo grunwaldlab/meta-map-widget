@@ -243,6 +243,17 @@ function parseTSV(text) {
   });
 }
 
+function formatTitle(name) {
+  if (!name) return '';
+  return String(name)
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 function findLatlongitudes(columns) {
   const l = c => c.toLowerCase();
   const latCandidates = ['lat', 'latitude', 'y'];
@@ -312,7 +323,8 @@ function buildPopupFromList(propsObj, list) {
   // show all properties + the entries in color_by list (if present)
   let html = '<table style="font-size:13px">';
   for (const k of Object.keys(propsObj)) {
-    html += `<tr><th style="text-align:left;padding-right:8px">${k}</th><td>${propsObj[k]}</td></tr>`;
+    if (k === 'color_by') continue;
+    html += `<tr><th style="text-align:left;padding-right:8px">${formatTitle(k)}</th><td>${propsObj[k]}</td></tr>`;
   }
   html += '</table>';
   return html;
@@ -381,7 +393,7 @@ function buildControls(container, sizeColumns, colorColumns, initialSize, initia
   sizeColumns.forEach(c => { 
     const o = document.createElement('option'); 
     o.value = c; 
-    o.text = c; 
+    o.text = formatTitle(c); 
     if (c === initialSize) {
       o.selected = true; 
     }
@@ -404,7 +416,8 @@ function buildControls(container, sizeColumns, colorColumns, initialSize, initia
 
   colorColumns.forEach(c => { 
     const o = document.createElement('option'); 
-    o.value = c; o.text = c; 
+    o.value = c; 
+    o.text = formatTitle(c); 
     if (c === initialColor) {
       o.selected = true; 
     }
@@ -438,9 +451,9 @@ function updateLegend(container, colorVar, sizeVar, meta) {
   if (colorVar) {
     if (meta.colorIsContinuous) {
       const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
-      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${colorVar} (continuous)</div><div style="width:160px;height:12px;background:${grad};border:1px solid #999"></div><div style="display:flex;justify-content:space-between"><small>${meta.colorMin}</small><small>${meta.colorMax}</small></div>`;
+      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div><div style="width:160px;height:12px;background:${grad};border:1px solid #999"></div><div style="display:flex;justify-content:space-between"><small>${meta.colorMin}</small><small>${meta.colorMax}</small></div>`;
     } else {
-      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${colorVar} (categories)</div>`;
+      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div>`;
       for (const k of Object.keys(meta.categoryMap || {})) {
         if (k === '__OTHER') continue;
         div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${meta.categoryMap[k]};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${k}</div>`;
@@ -454,7 +467,7 @@ function updateLegend(container, colorVar, sizeVar, meta) {
   }
 
   if (sizeVar) {
-    div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">Size: ${sizeVar}</div><div style="font-size:11px">Radius range: ${meta.sizeMin} → ${meta.sizeMax}</div>`;
+    div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">Size: ${formatTitle(sizeVar)}</div><div style="font-size:11px">Radius range: ${meta.sizeMin} → ${meta.sizeMax}</div>`;
   } else {
     div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">No size variable</div>`;
   }
@@ -463,10 +476,13 @@ function updateLegend(container, colorVar, sizeVar, meta) {
 }
 
 // TODO
-// correct dropdown options - remove categorical variables from size dropdown
+// fixed for now: correct dropdown options - remove categorical variables from size dropdown
 // gradient pie chart for continuous variables
-// none option for color
-// remove colorby from popup
+// fixed for now: none option for color
+// fixed for now: remove colorby from popup
 // improve size legend
 // scalable color legend w/ tick marks
+// color markers have similar colors grouped together
+// maximum popup size or scrollable popup if too many entries
+// fixed for now: formatting of visible titles derived from column names
 

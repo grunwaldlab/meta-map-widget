@@ -245,13 +245,12 @@ function parseTSV(text) {
 
 function formatTitle(name) {
   if (!name) return '';
-  return String(name)
+  let out = String(name)
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+    .trim();
+
+  return out.charAt(0).toUpperCase() + out.slice(1);
 }
 
 function findLatlongitudes(columns) {

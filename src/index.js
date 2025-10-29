@@ -157,6 +157,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
         // aggregate counts per category
         const counts = {};
         let sumSize = 0;
+        childMarkers.sort((a,b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
         childMarkers.forEach(m => {
           const cv = m._ps_colorValue ?? '__NULL';
           counts[cv] = (counts[cv] || 0) + 1;
@@ -181,6 +182,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
             byColor[c] = (byColor[c] || 0) + 1;
           });
           Object.keys(byColor).forEach(k => pieEntries.push({ count: byColor[k], color: k }));
+          pieEntries.sort((a,b) => (a.color === '#cccccc') ? 1 : 0);
         } else {
           // no colorVar: single-color pie (all same)
           pieEntries.push({ count: total, color: '#3388ff' });

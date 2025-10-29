@@ -31,6 +31,7 @@ This interactive map widget will be used to represent the locations of samples a
 * Create a popup for each marker that includes every variable from the color_by list
 * Include the leaflet cluster function for the color markers and size the cluster markers according to the average size of color markers in the cluster. If no size variable is selected, the cluster marker size will be proportional to the number of samples in that cluster 
 * The cluster markers will be represented as pie charts according to the proportion of the selected color variable values in that cluster
+* For continuous variables, colors on the pie chart markers should be ordered together (NOT binned) based on already mapped color values
 * Create legends for the selected color and size variables
 
 ## Tools used

@@ -33,7 +33,6 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
       colorByList = cols.filter(c => ![latitude, longitude, 'sample_id'].includes(c));
     }
     if (colorByList.length === 0) colorByList = cols.filter(c => ![latitude, longitude].includes(c));
-    console.log('Color by list:', colorByList);
 
     // detect numeric columns across the dataset
     let numericCols = detectNumericColumns(rows, Object.keys(rows[0]));
@@ -110,10 +109,28 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
         localColorMin = Math.min(...vals); localColorMax = Math.max(...vals);
         colorFn = v => viridisAt((v - localColorMin) / ((localColorMax - localColorMin) || 1));
       } else {
+        // First get frequencies
         const freq = {};
         rows.forEach(r => { const k = String(r[selectedColorVar]); freq[k] = (freq[k]||0)+1; });
-        const cats = Object.keys(freq).sort((a,b)=>freq[b]-freq[a]);
-        cats.slice(0, config.viridisMaxCategories).forEach((c,i)=> localCategoryMap[c] = VIRIDIS_CATEGORICAL[i % VIRIDIS_CATEGORICAL.length]);
+        // Get top N categories by frequency
+        const cats = Object.keys(freq)
+          .sort((a,b) => freq[b] - freq[a])
+          .slice(0, config.viridisMaxCategories);
+        
+        // Sort categories by their "natural" ordering if possible
+        // Try numeric sort first, then alphabetical if not numeric
+        const sortedCats = cats.slice().sort((a, b) => {
+          const numA = Number(a), numB = Number(b);
+          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+          return a.localeCompare(b);
+        });
+
+        // Assign colors evenly across the viridis range
+        sortedCats.forEach((c, i) => {
+          const t = sortedCats.length > 1 ? i / (sortedCats.length - 1) : 0.5;
+          localCategoryMap[c] = viridisAt(t);
+        });
+        
         localCategoryMap.__OTHER = '#cccccc';
         colorFn = v => (localCategoryMap[String(v)] || localCategoryMap.__OTHER);
       }
@@ -157,7 +174,13 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
         // aggregate counts per category
         const counts = {};
         let sumSize = 0;
-        childMarkers.sort((a,b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
+
+        if (selectedColorVar && !numericColsLocal.includes(selectedColorVar)) {
+          childMarkers.sort((a,b) => Object.keys(localCategoryMap).indexOf(a._ps_colorValue) - Object.keys(localCategoryMap).indexOf(b._ps_colorValue));
+        } else if (selectedColorVar && numericColsLocal.includes(selectedColorVar)) {
+          childMarkers.sort((a,b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
+        }
+
         childMarkers.forEach(m => {
           const cv = m._ps_colorValue ?? '__NULL';
           counts[cv] = (counts[cv] || 0) + 1;

@@ -238,7 +238,8 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
       colorIsContinuous: numericColsLocal.includes(selectedColorVar),
       colorMin: localColorMin, colorMax: localColorMax,
       categoryMap: localCategoryMap,
-      sizeMin: localSizeMin, sizeMax: localSizeMax
+      sizeMin: localSizeMin, sizeMax: localSizeMax,
+      config: config // Pass the config object
     });
   }
   // initial render
@@ -475,7 +476,38 @@ function updateLegend(container, colorVar, sizeVar, meta) {
   if (colorVar) {
     if (meta.colorIsContinuous) {
       const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
-      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div><div style="width:160px;height:12px;background:${grad};border:1px solid #999"></div><div style="display:flex;justify-content:space-between"><small>${meta.colorMin}</small><small>${meta.colorMax}</small></div>`;
+      const width = 160;
+      const tickCount = 5; // Number of ticks (including start and end)
+      
+      // Format number to appropriate precision based on range
+      const range = meta.colorMax - meta.colorMin;
+      const precision = range < 1 ? 2 : range < 10 ? 1 : 0;
+      const formatValue = v => v.toFixed(precision);
+      
+      // Generate tick values
+      const ticks = [];
+      for (let i = 0; i < tickCount; i++) {
+        const t = i / (tickCount - 1);
+        const value = meta.colorMin + (meta.colorMax - meta.colorMin) * t;
+        ticks.push({
+          position: t * width,
+          value: formatValue(value)
+        });
+      }
+      
+      div.innerHTML += `
+        <div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>
+        <div style="width:${width}px;position:relative;margin:4px 0 16px">
+          <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
+          <div style="position:relative;width:100%;height:14px">
+            ${ticks.map(tick => `
+              <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
+                <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
+                <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
     } else {
       div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div>`;
       for (const k of Object.keys(meta.categoryMap || {})) {
@@ -491,7 +523,30 @@ function updateLegend(container, colorVar, sizeVar, meta) {
   }
 
   if (sizeVar) {
-    div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">Size: ${formatTitle(sizeVar)}</div><div style="font-size:11px">Radius range: ${meta.sizeMin} → ${meta.sizeMax}</div>`;
+    // Format numbers with appropriate precision
+    const range = meta.sizeMax - meta.sizeMin;
+    const precision = range < 1 ? 2 : range < 10 ? 1 : 0;
+    const formatValue = v => v.toFixed(precision);
+
+    // Create three reference sizes (small, medium, large)
+    const sizes = [
+      { value: meta.sizeMin, radius: (meta.config.minRadius)/2 },
+      { value: (meta.sizeMin + meta.sizeMax) / 2, radius: (meta.config.minRadius + meta.config.maxRadius) / 4 },
+      { value: meta.sizeMax, radius: (meta.config.maxRadius)/2 }
+    ];
+
+    div.innerHTML += `
+      <hr style="margin:6px 0">
+      <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
+      <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
+        ${sizes.map(size => `
+          <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
+            <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
+            <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   } else {
     div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">No size variable</div>`;
   }
@@ -501,12 +556,12 @@ function updateLegend(container, colorVar, sizeVar, meta) {
 
 // TODO
 // fixed for now: correct dropdown options - remove categorical variables from size dropdown
-// gradient pie chart for continuous variables
+// fixed for now: gradient pie chart for continuous variables
 // fixed for now: none option for color
 // fixed for now: remove colorby from popup
 // improve size legend
 // scalable color legend w/ tick marks
-// color markers have similar colors grouped together
-// maximum popup size or scrollable popup if too many entries
+// fixed for now: color markers have similar colors grouped together
+// postpone: maximum popup size or scrollable popup if too many entries
 // fixed for now: formatting of visible titles derived from column names
 

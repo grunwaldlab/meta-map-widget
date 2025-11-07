@@ -12,68 +12,52 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
   };
 
   const container = document.getElementById(containerId);
-    if (!container) throw new Error(`Container "${containerId}" not found`);
+  if (!container) throw new Error(`Container "${containerId}" not found`);
 
-    // parse TSV into array of objects
-    const rows = parseTSV(tsvData);
-    if (!rows.length) throw new Error('No rows parsed from TSV');
+  // parse TSV into array of objects
+  let data = parseMetadata(tsvData);
+  if (!data.rows.length) throw new Error('No rows parsed from TSV');
 
-    // detect lat/lon headers
-    const cols = Object.keys(rows[0]);
-    const { lat: latitude, lon: longitude } = findLatlongitudes(cols);
-    if (!latitude || !longitude) throw new Error('TSV must include latitude and longitude columns');
+  // detect numeric columns across the dataset
+  let numericCols = detectNumericColumns(data.rows, Object.keys(data.rows[0]));
+  numericCols = numericCols.filter(c => !['latitude', 'longitude'].includes(c));
 
-    // determine color_by list if available (column named "color_by" holding semicolon-separated list),
-    // otherwise use all non-lat/lon/sample_id columns
-    let colorByList = [];
-    if ('color_by' in rows[0] && String(rows[0]['color_by']).trim() !== '') {
-      // take the value from the first row's color_by as the list (common pattern)
-      colorByList = String(rows[0]['color_by']).split(';').map(s => s.trim()).filter(Boolean);
+  // pick sizeVar: first numeric in colorByList (per AGENTS)
+  const sizeVar = data.factors.find(c => numericCols.includes(c)) || null;
+  // pick colorVar: first colorByList entry that isn't sizeVar
+  const colorVar = data.factors.find(c => c !== sizeVar) || null;
+
+  // prepare color mapping
+  const isColorContinuous = colorVar && numericCols.includes(colorVar);
+  let colorScale = null;
+  let categoryMap = {};
+  let colorMin = null, colorMax = null;
+
+  if (colorVar) {
+    if (isColorContinuous) {
+      const vals = data.rows.map(r => Number(r[colorVar])).filter(v => !Number.isNaN(v));
+      colorMin = Math.min(...vals); colorMax = Math.max(...vals);
+      colorScale = v => viridisAt((v - colorMin) / ((colorMax - colorMin) || 1));
     } else {
-      colorByList = cols.filter(c => ![latitude, longitude, 'sample_id'].includes(c));
-    }
-    if (colorByList.length === 0) colorByList = cols.filter(c => ![latitude, longitude].includes(c));
-
-    // detect numeric columns across the dataset
-    let numericCols = detectNumericColumns(rows, Object.keys(rows[0]));
-    numericCols = numericCols.filter(c => ![latitude, longitude].includes(c));
-
-    // pick sizeVar: first numeric in colorByList (per AGENTS)
-    const sizeVar = colorByList.find(c => numericCols.includes(c)) || null;
-    // pick colorVar: first colorByList entry that isn't sizeVar
-    const colorVar = colorByList.find(c => c !== sizeVar) || null;
-
-    // prepare color mapping
-    const isColorContinuous = colorVar && numericCols.includes(colorVar);
-    let colorScale = null;
-    let categoryMap = {};
-    let colorMin = null, colorMax = null;
-
-    if (colorVar) {
-      if (isColorContinuous) {
-        const vals = rows.map(r => Number(r[colorVar])).filter(v => !Number.isNaN(v));
-        colorMin = Math.min(...vals); colorMax = Math.max(...vals);
-        colorScale = v => viridisAt((v - colorMin) / ((colorMax - colorMin) || 1));
-      } else {
-        // categorical mapping with top-N categories colored; rest gray
-        const freq = {};
-        for (const r of rows) {
-          const k = String(r[colorVar]);
-          freq[k] = (freq[k] || 0) + 1;
-        }
-        const cats = Object.keys(freq).sort((a,b) => freq[b] - freq[a]);
-        const palette = VIRIDIS_CATEGORICAL;
-        const maxCols = config.viridisMaxCategories;
-        cats.slice(0, maxCols).forEach((c, i) => categoryMap[c] = palette[i % palette.length]);
-        // the rest will map to gray
-        categoryMap.__OTHER = '#cccccc';
+      // categorical mapping with top-N categories colored; rest gray
+      const freq = {};
+      for (const r of data.rows) {
+        const k = String(r[colorVar]);
+        freq[k] = (freq[k] || 0) + 1;
       }
+      const cats = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+      const palette = VIRIDIS_CATEGORICAL;
+      const maxCols = config.viridisMaxCategories;
+      cats.slice(0, maxCols).forEach((c, i) => categoryMap[c] = palette[i % palette.length]);
+      // the rest will map to gray
+      categoryMap.__OTHER = '#cccccc';
     }
-    
-    // prepare size scale
+  }
+
+  // prepare size scale
   let sizeMin = null, sizeMax = null;
   if (sizeVar) {
-    const vals = rows.map(r => Number(r[sizeVar])).filter(v => !Number.isNaN(v));
+    const vals = data.rows.map(r => Number(r[sizeVar])).filter(v => !Number.isNaN(v));
     sizeMin = Math.min(...vals); sizeMax = Math.max(...vals);
   }
 
@@ -85,7 +69,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
   }).addTo(map);
 
   // build UI controls (two dropdowns) inside the container
-  const controlBox = buildControls(container, numericCols, colorByList, sizeVar, colorVar, onSelectionChange);
+  const controlBox = buildControls(container, numericCols, data.factors, sizeVar, colorVar, onSelectionChange);
   container.prepend(controlBox);
 
   // marker cluster group (requires Leaflet.markercluster included on page)
@@ -98,25 +82,25 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
     markerLayer.clearLayers();
 
     // prepare color and size scales for the chosen variables
-    const numericColsLocal = detectNumericColumns(rows, Object.keys(rows[0]));
+    const numericColsLocal = detectNumericColumns(data.rows, Object.keys(data.rows[0]));
     const colorIsCont = selectedColorVar && numericColsLocal.includes(selectedColorVar);
     let colorFn = () => '#888';
     let localCategoryMap = {};
     let localColorMin = null, localColorMax = null;
     if (selectedColorVar) {
       if (colorIsCont) {
-        const vals = rows.map(r => Number(r[selectedColorVar])).filter(v => !Number.isNaN(v));
+        const vals = data.rows.map(r => Number(r[selectedColorVar])).filter(v => !Number.isNaN(v));
         localColorMin = Math.min(...vals); localColorMax = Math.max(...vals);
         colorFn = v => viridisAt((v - localColorMin) / ((localColorMax - localColorMin) || 1));
       } else {
         // First get frequencies
         const freq = {};
-        rows.forEach(r => { const k = String(r[selectedColorVar]); freq[k] = (freq[k]||0)+1; });
+        data.rows.forEach(r => { const k = String(r[selectedColorVar]); freq[k] = (freq[k] || 0) + 1; });
         // Get top N categories by frequency
         const cats = Object.keys(freq)
-          .sort((a,b) => freq[b] - freq[a])
+          .sort((a, b) => freq[b] - freq[a])
           .slice(0, config.viridisMaxCategories);
-        
+
         // Sort categories by their "natural" ordering if possible
         // Try numeric sort first, then alphabetical if not numeric
         const sortedCats = cats.slice().sort((a, b) => {
@@ -130,7 +114,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
           const t = sortedCats.length > 1 ? i / (sortedCats.length - 1) : 0.5;
           localCategoryMap[c] = viridisAt(t);
         });
-        
+
         localCategoryMap.__OTHER = '#cccccc';
         colorFn = v => (localCategoryMap[String(v)] || localCategoryMap.__OTHER);
       }
@@ -138,13 +122,13 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
 
     let localSizeMin = null, localSizeMax = null;
     if (selectedSizeVar) {
-      const vals = rows.map(r => Number(r[selectedSizeVar])).filter(v => !Number.isNaN(v));
+      const vals = data.rows.map(r => Number(r[selectedSizeVar])).filter(v => !Number.isNaN(v));
       localSizeMin = Math.min(...vals); localSizeMax = Math.max(...vals);
     }
 
     const markers = [];
-    for (const r of rows) {
-      const lat = Number(r[latitude]), lon = Number(r[longitude]);
+    for (const r of data.rows) {
+      const lat = Number(r['latitude']), lon = Number(r['longitude']);
       if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
 
       const sizeValue = selectedSizeVar ? Number(r[selectedSizeVar]) : null;
@@ -163,22 +147,22 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
       marker._ps_size = radiusPx;
       marker._ps_colorValue = colorValue;
       marker._ps_props = r;
-      marker.bindPopup(buildPopupFromList(r, colorByList));
+      marker.bindPopup(buildPopupFromList(r, data.factors));
       markers.push(marker);
     }
-    
+
     if (clusterGroup) {
       // create custom cluster icon that draws pie-chart + scales by avg size or count
-      clusterGroup.options.iconCreateFunction = function(cluster) {
+      clusterGroup.options.iconCreateFunction = function (cluster) {
         const childMarkers = cluster.getAllChildMarkers();
         // aggregate counts per category
         const counts = {};
         let sumSize = 0;
 
         if (selectedColorVar && !numericColsLocal.includes(selectedColorVar)) {
-          childMarkers.sort((a,b) => Object.keys(localCategoryMap).indexOf(a._ps_colorValue) - Object.keys(localCategoryMap).indexOf(b._ps_colorValue));
+          childMarkers.sort((a, b) => Object.keys(localCategoryMap).indexOf(a._ps_colorValue) - Object.keys(localCategoryMap).indexOf(b._ps_colorValue));
         } else if (selectedColorVar && numericColsLocal.includes(selectedColorVar)) {
-          childMarkers.sort((a,b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
+          childMarkers.sort((a, b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
         }
 
         childMarkers.forEach(m => {
@@ -205,14 +189,14 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
             byColor[c] = (byColor[c] || 0) + 1;
           });
           Object.keys(byColor).forEach(k => pieEntries.push({ count: byColor[k], color: k }));
-          pieEntries.sort((a,b) => (a.color === '#cccccc') ? 1 : 0);
+          pieEntries.sort((a, b) => (a.color === '#cccccc') ? 1 : 0);
         } else {
           // no colorVar: single-color pie (all same)
           pieEntries.push({ count: total, color: '#3388ff' });
         }
 
         // sort to put __OTHER last (if present)
-        pieEntries.sort((a,b) => (a.color === '#cccccc') ? 1 : 0);
+        pieEntries.sort((a, b) => (a.color === '#cccccc') ? 1 : 0);
 
         const clusterRadius = selectedSizeVar ? Math.max(16, Math.round(avgSize * 1.4)) : Math.max(12, Math.round(Math.sqrt(total) * 4));
         const svg = createPieSvg(pieEntries, clusterRadius);
@@ -228,10 +212,6 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
     } else {
       markerLayer = L.layerGroup(markers).addTo(map);
     }
-
-    // fit bounds
-    const groupBounds = clusterGroup ? clusterGroup.getBounds() : markerLayer.getBounds();
-    if (groupBounds && groupBounds.isValid && groupBounds.isValid()) map.fitBounds(groupBounds, { padding: [20, 20] });
 
     // update legends
     updateLegend(container, selectedColorVar, selectedSizeVar, {
@@ -258,6 +238,40 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
 
 /* --------------------- helpers --------------------- */
 
+//parseMetadata calls parseTSV, iterates through and records unique colorBy values
+// also removes data for columns not in colorBy list and replace w/ null
+// then delete any column not in colorBy
+
+function parseMetadata(text) {
+  // First parse the TSV
+  const rows = parseTSV(text);
+
+  // Collect all unique color-by values
+  const colorBySet = new Set();
+  for (const row of rows) {
+    String(row['color_by']).split(';')
+      .map(s => s.trim())
+      .forEach(col => colorBySet.add(col));
+  }
+
+  let colorByList = Array.from(colorBySet);
+
+  // Keep only relevant columns in the data
+  const keepColumns = new Set(['latitude', 'longitude', 'sample_id', ...colorByList]);
+  const filteredRows = rows.map(row => {
+    const newRow = {};
+    for (const col of keepColumns) {
+      if (col in row) newRow[col] = row[col];
+    }
+    return newRow;
+  });
+
+  return {
+    rows: filteredRows,
+    factors: colorByList
+  };
+}
+
 function parseTSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   const headers = lines.shift().split('\t').map(h => h.trim());
@@ -277,16 +291,6 @@ function formatTitle(name) {
     .trim();
 
   return out.charAt(0).toUpperCase() + out.slice(1);
-}
-
-function findLatlongitudes(columns) {
-  const l = c => c.toLowerCase();
-  const latCandidates = ['lat', 'latitude', 'y'];
-  const lonCandidates = ['lon', 'lng', 'longitude', 'x'];
-  return {
-    lat: columns.find(c => latCandidates.includes(l(c))),
-    lon: columns.find(c => lonCandidates.includes(l(c)))
-  };
 }
 
 function detectNumericColumns(rows, columns, threshold = 0.8) {
@@ -362,8 +366,8 @@ function createCircleDivIcon(radiusPx, fillColor) {
     html,
     className: '',
     iconSize: [size, size],
-    iconAnchor: [Math.round(size/2), Math.round(size/2)],
-    popupAnchor: [0, -Math.round(size/2) - 2]
+    iconAnchor: [Math.round(size / 2), Math.round(size / 2)],
+    popupAnchor: [0, -Math.round(size / 2) - 2]
   });
 }
 
@@ -386,7 +390,7 @@ function createPieSvg(entries, radius) {
   }).join('');
   // center count text
   const count = total;
-  const svg = `<svg width="${radius * 2}" height="${radius * 2}" viewBox="0 0 ${radius * 2} ${radius * 2}" xmlns="http://www.w3.org/2000/svg">${slices}<circle cx="${cx}" cy="${cy}" r="${radius*0.3}" fill="rgba(255,255,255,0.9)" stroke="#222" stroke-width="0.6"></circle><text x="${cx}" y="${cy+4}" font-size="${Math.max(10, radius*0.4)}" font-weight="600" text-anchor="middle" fill="#111">${count}</text></svg>`;
+  const svg = `<svg width="${radius * 2}" height="${radius * 2}" viewBox="0 0 ${radius * 2} ${radius * 2}" xmlns="http://www.w3.org/2000/svg">${slices}<circle cx="${cx}" cy="${cy}" r="${radius * 0.3}" fill="rgba(255,255,255,0.9)" stroke="#222" stroke-width="0.6"></circle><text x="${cx}" y="${cy + 4}" font-size="${Math.max(10, radius * 0.4)}" font-weight="600" text-anchor="middle" fill="#111">${count}</text></svg>`;
   return svg;
 }
 
@@ -403,50 +407,50 @@ function buildControls(container, sizeColumns, colorColumns, initialSize, initia
   box.style.fontSize = '13px';
 
   // size select
-  const sizeLabel = document.createElement('label'); 
-  sizeLabel.textContent = 'Size: '; 
+  const sizeLabel = document.createElement('label');
+  sizeLabel.textContent = 'Size: ';
   sizeLabel.style.marginRight = '6px';
 
-  const sizeSelect = document.createElement('select'); 
+  const sizeSelect = document.createElement('select');
   sizeSelect.id = 'ps-size-select';
 
-  const noneOpt = document.createElement('option'); 
-  noneOpt.value = ''; 
-  noneOpt.text = '— none —'; 
+  const noneOpt = document.createElement('option');
+  noneOpt.value = '';
+  noneOpt.text = '— none —';
   sizeSelect.appendChild(noneOpt);
 
-  sizeColumns.forEach(c => { 
-    const o = document.createElement('option'); 
-    o.value = c; 
-    o.text = formatTitle(c); 
+  sizeColumns.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.text = formatTitle(c);
     if (c === initialSize) {
-      o.selected = true; 
+      o.selected = true;
     }
-    sizeSelect.appendChild(o); 
+    sizeSelect.appendChild(o);
   });
 
   // color select
-  const colorLabel = document.createElement('label'); 
-  colorLabel.textContent = 'Color: '; 
-  colorLabel.style.marginLeft = '8px'; 
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = 'Color: ';
+  colorLabel.style.marginLeft = '8px';
   colorLabel.style.marginRight = '6px';
 
-  const colorSelect = document.createElement('select'); 
+  const colorSelect = document.createElement('select');
   colorSelect.id = 'ps-color-select';
 
-  const noneOptColor = document.createElement('option'); 
-  noneOptColor.value = ''; 
-  noneOptColor.text = '— none —'; 
+  const noneOptColor = document.createElement('option');
+  noneOptColor.value = '';
+  noneOptColor.text = '— none —';
   colorSelect.appendChild(noneOptColor);
 
-  colorColumns.forEach(c => { 
-    const o = document.createElement('option'); 
-    o.value = c; 
-    o.text = formatTitle(c); 
+  colorColumns.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.text = formatTitle(c);
     if (c === initialColor) {
-      o.selected = true; 
+      o.selected = true;
     }
-    colorSelect.appendChild(o); 
+    colorSelect.appendChild(o);
   });
 
   sizeSelect.addEventListener('change', () => onChange(sizeSelect.value || null, colorSelect.value || null));
@@ -478,12 +482,12 @@ function updateLegend(container, colorVar, sizeVar, meta) {
       const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
       const width = 160;
       const tickCount = 5; // Number of ticks (including start and end)
-      
+
       // Format number to appropriate precision based on range
       const range = meta.colorMax - meta.colorMin;
       const precision = range < 1 ? 2 : range < 10 ? 1 : 0;
       const formatValue = v => v.toFixed(precision);
-      
+
       // Generate tick values
       const ticks = [];
       for (let i = 0; i < tickCount; i++) {
@@ -494,20 +498,20 @@ function updateLegend(container, colorVar, sizeVar, meta) {
           value: formatValue(value)
         });
       }
-      
+
       div.innerHTML += `
-        <div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>
-        <div style="width:${width}px;position:relative;margin:4px 0 16px">
-          <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
-          <div style="position:relative;width:100%;height:14px">
-            ${ticks.map(tick => `
-              <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
-                <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
-                <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>`;
+          <div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>
+          <div style="width:${width}px;position:relative;margin:4px 0 16px">
+            <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
+            <div style="position:relative;width:100%;height:14px">
+              ${ticks.map(tick => `
+                <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
+                  <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
+                  <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
     } else {
       div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div>`;
       for (const k of Object.keys(meta.categoryMap || {})) {
@@ -530,23 +534,23 @@ function updateLegend(container, colorVar, sizeVar, meta) {
 
     // Create three reference sizes (small, medium, large)
     const sizes = [
-      { value: meta.sizeMin, radius: (meta.config.minRadius)/2 },
+      { value: meta.sizeMin, radius: (meta.config.minRadius) / 2 },
       { value: (meta.sizeMin + meta.sizeMax) / 2, radius: (meta.config.minRadius + meta.config.maxRadius) / 4 },
-      { value: meta.sizeMax, radius: (meta.config.maxRadius)/2 }
+      { value: meta.sizeMax, radius: (meta.config.maxRadius) / 2 }
     ];
 
     div.innerHTML += `
-      <hr style="margin:6px 0">
-      <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
-      <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
-        ${sizes.map(size => `
-          <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
-            <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
-            <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+        <hr style="margin:6px 0">
+        <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
+        <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
+          ${sizes.map(size => `
+            <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
+              <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
+              <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
   } else {
     div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">No size variable</div>`;
   }
@@ -564,4 +568,3 @@ function updateLegend(container, colorVar, sizeVar, meta) {
 // fixed for now: color markers have similar colors grouped together
 // postpone: maximum popup size or scrollable popup if too many entries
 // fixed for now: formatting of visible titles derived from column names
-

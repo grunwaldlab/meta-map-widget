@@ -27,40 +27,6 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
   // pick colorVar: first colorByList entry that isn't sizeVar
   const colorVar = data.factors.find(c => c !== sizeVar) || null;
 
-  // prepare color mapping
-  const isColorContinuous = colorVar && numericCols.includes(colorVar);
-  let colorScale = null;
-  let categoryMap = {};
-  let colorMin = null, colorMax = null;
-
-  if (colorVar) {
-    if (isColorContinuous) {
-      const vals = data.rows.map(r => Number(r[colorVar])).filter(v => !Number.isNaN(v));
-      colorMin = Math.min(...vals); colorMax = Math.max(...vals);
-      colorScale = v => viridisAt((v - colorMin) / ((colorMax - colorMin) || 1));
-    } else {
-      // categorical mapping with top-N categories colored; rest gray
-      const freq = {};
-      for (const r of data.rows) {
-        const k = String(r[colorVar]);
-        freq[k] = (freq[k] || 0) + 1;
-      }
-      const cats = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
-      const palette = VIRIDIS_CATEGORICAL;
-      const maxCols = config.viridisMaxCategories;
-      cats.slice(0, maxCols).forEach((c, i) => categoryMap[c] = palette[i % palette.length]);
-      // the rest will map to gray
-      categoryMap.__OTHER = '#cccccc';
-    }
-  }
-
-  // prepare size scale
-  let sizeMin = null, sizeMax = null;
-  if (sizeVar) {
-    const vals = data.rows.map(r => Number(r[sizeVar])).filter(v => !Number.isNaN(v));
-    sizeMin = Math.min(...vals); sizeMax = Math.max(...vals);
-  }
-
   // setup map
   const map = L.map(containerId, { preferCanvas: true }).setView([10, 0], 2);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -248,16 +214,23 @@ function parseMetadata(text) {
 
   // Collect all unique color-by values
   const colorBySet = new Set();
+  const defaultCols = ['longitude', 'latitude', 'sample_id'];
   for (const row of rows) {
-    String(row['color_by']).split(';')
-      .map(s => s.trim())
-      .forEach(col => colorBySet.add(col));
+    console.log(row);
+    const factors = String(row['color_by']).split(';')
+      .map(s => s.trim());
+    factors.forEach(col => colorBySet.add(col));
+    factors.push(...defaultCols);
+    Object.keys(row).forEach(k => {
+      if (!factors.includes(k)) {
+        row[k] = null;
+      }
+    });
   }
-
-  let colorByList = Array.from(colorBySet);
+  const colorByList = Array.from(colorBySet);
 
   // Keep only relevant columns in the data
-  const keepColumns = new Set(['latitude', 'longitude', 'sample_id', ...colorByList]);
+  const keepColumns = new Set([...defaultCols, ...colorByList]);
   const filteredRows = rows.map(row => {
     const newRow = {};
     for (const col of keepColumns) {

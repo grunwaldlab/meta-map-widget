@@ -1,5 +1,5 @@
+import { ContinuousColorScale, CategoricalColorScale, ContinuousSizeScale } from './scales.js';
 const L = window.L; // assume Leaflet is loaded globally
-
 // Exported function: PSMapWidget(containerId, tsvData, opts)
 // - containerId: id of DOM element to mount
 // - tsvData: string containing TSV (header + rows)
@@ -50,46 +50,24 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
     // prepare color and size scales for the chosen variables
     const numericColsLocal = detectNumericColumns(data.rows, Object.keys(data.rows[0]));
     const colorIsCont = selectedColorVar && numericColsLocal.includes(selectedColorVar);
-    let colorFn = () => '#888';
-    let localCategoryMap = {};
-    let localColorMin = null, localColorMax = null;
+
+    let colorScale = null;
     if (selectedColorVar) {
       if (colorIsCont) {
         const vals = data.rows.map(r => Number(r[selectedColorVar])).filter(v => !Number.isNaN(v));
-        localColorMin = Math.min(...vals); localColorMax = Math.max(...vals);
-        colorFn = v => viridisAt((v - localColorMin) / ((localColorMax - localColorMin) || 1));
+        const colorMin = Math.min(...vals), colorMax = Math.max(...vals);
+        colorScale = new ContinuousColorScale(colorMin, colorMax);
       } else {
-        // First get frequencies
-        const freq = {};
-        data.rows.forEach(r => { const k = String(r[selectedColorVar]); freq[k] = (freq[k] || 0) + 1; });
-        // Get top N categories by frequency
-        const cats = Object.keys(freq)
-          .sort((a, b) => freq[b] - freq[a])
-          .slice(0, config.viridisMaxCategories);
-
-        // Sort categories by their "natural" ordering if possible
-        // Try numeric sort first, then alphabetical if not numeric
-        const sortedCats = cats.slice().sort((a, b) => {
-          const numA = Number(a), numB = Number(b);
-          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-          return a.localeCompare(b);
-        });
-
-        // Assign colors evenly across the viridis range
-        sortedCats.forEach((c, i) => {
-          const t = sortedCats.length > 1 ? i / (sortedCats.length - 1) : 0.5;
-          localCategoryMap[c] = viridisAt(t);
-        });
-
-        localCategoryMap.__OTHER = '#cccccc';
-        colorFn = v => (localCategoryMap[String(v)] || localCategoryMap.__OTHER);
+        const categoryData = data.rows.map(r => String(r[selectedColorVar]));
+        colorScale = new CategoricalColorScale(categoryData, 0, 1, VIRIDIS_CATEGORICAL);
       }
     }
 
-    let localSizeMin = null, localSizeMax = null;
+    let sizeScale = null;
     if (selectedSizeVar) {
       const vals = data.rows.map(r => Number(r[selectedSizeVar])).filter(v => !Number.isNaN(v));
-      localSizeMin = Math.min(...vals); localSizeMax = Math.max(...vals);
+      const sizeMin = Math.min(...vals), sizeMax = Math.max(...vals);
+      sizeScale = new ContinuousSizeScale(sizeMin, sizeMax, config.minRadius, config.maxRadius);
     }
 
     const markers = [];
@@ -98,16 +76,15 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
       if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
 
       const sizeValue = selectedSizeVar ? Number(r[selectedSizeVar]) : null;
-      const radiusPx = selectedSizeVar && !Number.isNaN(sizeValue)
-        ? scaleRange(sizeValue, localSizeMin, localSizeMax, config.minRadius, config.maxRadius)
+      const radiusPx = sizeScale && !Number.isNaN(sizeValue)
+        ? sizeScale.getValue(sizeValue)
         : (config.minRadius + config.maxRadius) / 2;
 
       const colorValue = selectedColorVar ? r[selectedColorVar] : null;
-      const fill = selectedColorVar
-        ? (colorIsCont ? colorFn(Number(colorValue)) : colorFn(colorValue))
+      const fill = colorScale
+        ? colorScale.getValue(colorIsCont ? Number(colorValue) : colorValue)
         : '#3388ff';
 
-      // use L.marker with divIcon so clusters work; keep popup data
       const icon = createCircleDivIcon(radiusPx, fill);
       const marker = L.marker([lat, lon], { icon });
       marker._ps_size = radiusPx;
@@ -126,7 +103,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
         let sumSize = 0;
 
         if (selectedColorVar && !numericColsLocal.includes(selectedColorVar)) {
-          childMarkers.sort((a, b) => Object.keys(localCategoryMap).indexOf(a._ps_colorValue) - Object.keys(localCategoryMap).indexOf(b._ps_colorValue));
+          childMarkers.sort((a, b) => colorScale.categories.indexOf(a._ps_colorValue) - colorScale.categories.indexOf(b._ps_colorValue));
         } else if (selectedColorVar && numericColsLocal.includes(selectedColorVar)) {
           childMarkers.sort((a, b) => Number(a._ps_colorValue) - Number(b._ps_colorValue));
         }
@@ -143,15 +120,16 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
         if (selectedColorVar && !numericColsLocal.includes(selectedColorVar)) {
           // categorical: map category to color
           Object.keys(counts).forEach(k => {
-            const col = localCategoryMap && (localCategoryMap[String(k)] || localCategoryMap.__OTHER) || '#ccc';
-            pieEntries.push({ count: counts[k], color: col });
+            pieEntries.push({ count: counts[k], color: colorScale.getValue(k) });
           });
         } else if (selectedColorVar && numericColsLocal.includes(selectedColorVar)) {
           // continuous: bucket into viridis bins by child marker color value (use their computed color)
           // approximate by grouping by the hex color chosen earlier
           const byColor = {};
           childMarkers.forEach(m => {
-            const c = colorFn(Number(m._ps_props[selectedColorVar]));
+            const c = colorScale
+              ? colorScale.getValue(Number(m._ps_props[selectedColorVar]))
+              : '#3388ff';
             byColor[c] = (byColor[c] || 0) + 1;
           });
           Object.keys(byColor).forEach(k => pieEntries.push({ count: byColor[k], color: k }));
@@ -179,13 +157,11 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
       markerLayer = L.layerGroup(markers).addTo(map);
     }
 
-    // update legends
+    // update legend with scale objects
     updateLegend(container, selectedColorVar, selectedSizeVar, {
-      colorIsContinuous: numericColsLocal.includes(selectedColorVar),
-      colorMin: localColorMin, colorMax: localColorMax,
-      categoryMap: localCategoryMap,
-      sizeMin: localSizeMin, sizeMax: localSizeMax,
-      config: config // Pass the config object
+      colorScale,
+      sizeScale,
+      config
     });
   }
   // initial render
@@ -216,7 +192,6 @@ function parseMetadata(text) {
   const colorBySet = new Set();
   const defaultCols = ['longitude', 'latitude', 'sample_id'];
   for (const row of rows) {
-    console.log(row);
     const factors = String(row['color_by']).split(';')
       .map(s => s.trim());
     factors.forEach(col => colorBySet.add(col));
@@ -450,14 +425,19 @@ function updateLegend(container, colorVar, sizeVar, meta) {
   div.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
   div.style.fontSize = '12px';
 
-  if (colorVar) {
-    if (meta.colorIsContinuous) {
+  if (colorVar && meta.colorScale) {
+    const colorScale = meta.colorScale;
+    const isContinuous = colorScale instanceof ContinuousColorScale;
+
+    div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>`;
+
+    if (isContinuous) {
       const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
       const width = 160;
-      const tickCount = 5; // Number of ticks (including start and end)
+      const tickCount = 5;
 
       // Format number to appropriate precision based on range
-      const range = meta.colorMax - meta.colorMin;
+      const range = colorScale.dataMax - colorScale.dataMin;
       const precision = range < 1 ? 2 : range < 10 ? 1 : 0;
       const formatValue = v => v.toFixed(precision);
 
@@ -465,7 +445,7 @@ function updateLegend(container, colorVar, sizeVar, meta) {
       const ticks = [];
       for (let i = 0; i < tickCount; i++) {
         const t = i / (tickCount - 1);
-        const value = meta.colorMin + (meta.colorMax - meta.colorMin) * t;
+        const value = colorScale.dataMin + (colorScale.dataMax - colorScale.dataMin) * t;
         ticks.push({
           position: t * width,
           value: formatValue(value)
@@ -473,61 +453,53 @@ function updateLegend(container, colorVar, sizeVar, meta) {
       }
 
       div.innerHTML += `
-          <div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>
-          <div style="width:${width}px;position:relative;margin:4px 0 16px">
-            <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
-            <div style="position:relative;width:100%;height:14px">
-              ${ticks.map(tick => `
-                <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
-                  <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
-                  <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>`;
+        <div style="width:${width}px;position:relative;margin:4px 0 16px">
+          <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
+          <div style="position:relative;width:100%;height:14px">
+            ${ticks.map(tick => `
+              <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
+                <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
+                <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
     } else {
-      div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)} </div>`;
-      for (const k of Object.keys(meta.categoryMap || {})) {
-        if (k === '__OTHER') continue;
-        div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${meta.categoryMap[k]};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${k}</div>`;
-      }
-      if (meta.categoryMap && meta.categoryMap.__OTHER) {
-        div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${meta.categoryMap.__OTHER};width:12px;height:12px;display:inline-block;margin-right:6px"></i>Other (least frequent)</div>`;
+      // Categorical legend
+      for (const category of colorScale.categories) {
+        const color = colorScale.getValue(category);
+        div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${color};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${category}</div>`;
       }
     }
-  } else {
-    div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">No color variable</div>`;
   }
 
-  if (sizeVar) {
-    // Format numbers with appropriate precision
-    const range = meta.sizeMax - meta.sizeMin;
-    const precision = range < 1 ? 2 : range < 10 ? 1 : 0;
+  if (sizeVar && meta.sizeScale) {
+    const sizeScale = meta.sizeScale;
+    const precision = (sizeScale.dataMax - sizeScale.dataMin) < 1 ? 2 :
+      (sizeScale.dataMax - sizeScale.dataMin) < 10 ? 1 : 0;
     const formatValue = v => v.toFixed(precision);
 
-    // Create three reference sizes (small, medium, large)
     const sizes = [
-      { value: meta.sizeMin, radius: (meta.config.minRadius) / 2 },
-      { value: (meta.sizeMin + meta.sizeMax) / 2, radius: (meta.config.minRadius + meta.config.maxRadius) / 4 },
-      { value: meta.sizeMax, radius: (meta.config.maxRadius) / 2 }
+      { value: sizeScale.dataMin, radius: sizeScale.sizeMin / 2 },
+      { value: (sizeScale.dataMin + sizeScale.dataMax) / 2, radius: (sizeScale.sizeMin + sizeScale.sizeMax) / 4 },
+      { value: sizeScale.dataMax, radius: sizeScale.sizeMax / 2 }
     ];
 
     div.innerHTML += `
-        <hr style="margin:6px 0">
-        <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
-        <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
-          ${sizes.map(size => `
-            <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
-              <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
-              <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-  } else {
-    div.innerHTML += `<hr style="margin:6px 0"><div style="font-weight:600">No size variable</div>`;
+      <hr style="margin:6px 0">
+      <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
+      <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
+        ${sizes.map(size => `
+          <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
+            <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
+            <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
+  // Always append the legend to the map container
   container.appendChild(div);
 }
 

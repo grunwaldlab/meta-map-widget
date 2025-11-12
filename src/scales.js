@@ -1,3 +1,4 @@
+const VIRIDIS = ['#440154', '#482777', '#3f4a8a', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'];
 /**
  * Scale for mapping continuous numeric values to sizes
  */
@@ -48,13 +49,14 @@ export class ContinuousColorScale {
 
         // Default to viridis-like color scheme if not provided
         if (colors === null) {
-            this.colors = ['#440154', '#31688e', '#35b779', '#fde724'].map(c => this._hexToRgb(c));
+            this.colorsHex = VIRIDIS;
         } else {
             if (colors.length < 1) {
                 throw new Error('At least 1 color is required');
             }
-            this.colors = colors.map(c => this._hexToRgb(c));
+            this.colorsHex = colors;
         }
+        this.colors = this.colorsHex.map(c => this._hexToRgb(c));
 
         // Handle single color case
         if (this.colors.length === 1) {
@@ -238,7 +240,7 @@ export class CategoricalColorScale {
 
         // Default to viridis-like color scheme if not provided
         if (colors === null) {
-            this.colors = ['#440154', '#31688e', '#35b779', '#fde724'].map(c => this._hexToRgb(c));
+            this.colors = VIRIDIS.map(c => this._hexToRgb(c));
         } else {
             if (colors.length < 1) {
                 throw new Error('At least 1 color is required');

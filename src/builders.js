@@ -1,6 +1,6 @@
 
 import { ContinuousColorScale } from './scales.js';
-import { formatTitle, VIRIDIS } from './utils.js';
+import { formatTitle } from './utils.js';
 
 export function buildPopupFromList(propsObj, list) {
     // show all properties + the entries in color_by list (if present)
@@ -115,7 +115,7 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
     return box;
 }
 
-export function updateLegend(container, colorVar, sizeVar, meta) {
+export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale) {
     // remove existing legend if any
     const existing = container.querySelector('.ps-legend');
     if (existing) existing.remove();
@@ -131,14 +131,13 @@ export function updateLegend(container, colorVar, sizeVar, meta) {
     div.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
     div.style.fontSize = '12px';
 
-    if (colorVar && meta.colorScale) {
-        const colorScale = meta.colorScale;
+    if (colorVar && colorScale) {
         const isContinuous = colorScale instanceof ContinuousColorScale;
 
         div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>`;
 
         if (isContinuous) {
-            const grad = `linear-gradient(90deg, ${VIRIDIS.join(',')})`;
+            const grad = `linear-gradient(90deg, ${colorScale.colorsHex.join(',')})`;
             const width = 160;
             const tickCount = 5;
 
@@ -179,8 +178,7 @@ export function updateLegend(container, colorVar, sizeVar, meta) {
         }
     }
 
-    if (sizeVar && meta.sizeScale) {
-        const sizeScale = meta.sizeScale;
+    if (sizeVar && sizeScale) {
         const precision = (sizeScale.dataMax - sizeScale.dataMin) < 1 ? 2 :
             (sizeScale.dataMax - sizeScale.dataMin) < 10 ? 1 : 0;
         const formatValue = v => v.toFixed(precision);
@@ -194,7 +192,7 @@ export function updateLegend(container, colorVar, sizeVar, meta) {
         div.innerHTML += `
       <hr style="margin:6px 0">
       <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
-      <div style="display:flex;align-items:flex-end;height:${meta.config.maxRadius * 2 + 4}px;margin:4px 0">
+      <div style="display:flex;align-items:flex-end;height:${sizeScale.sizeMax * 2 + 4}px;margin:4px 0">
         ${sizes.map(size => `
           <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
             <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>

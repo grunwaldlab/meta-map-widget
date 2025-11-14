@@ -3,40 +3,34 @@
 <head>
   <meta charset="utf-8">
   <title>PSMapWidget demo</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>html,body,#map{height:100%;margin:0;padding:0}body{height:100vh}</style>
 </head>
 <body>
   <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster-src.js"></script>
+  <script type="module">
+    import { PSMapWidget } from '../dist/ps-leaflet-map-widget.es.js';
 
-<script type="module">
-    import { PSMapWidget } from '../src/index.js';
+    // generate TSV string from random sample metadata
+    function generateTSV(n = 120) {
+      const headers = ['sample_id','latitude','longitude','proportion_infected','location_type','temperature','color_by'];
+      const types = ['urban','rural','coastal','suburban'];
+      const rows = [headers.join('\t')];
+      const colorByList = ['proportion_infected;temperature;location_type'].join(';'); // example color_by value
+        for (let i = 0; i < n; i++) {
+            const lat = ((Math.random() * 140) - 70).toFixed(6);
+            const lon = ((Math.random() * 360) - 180).toFixed(6);
+            const proportion = (Math.random() * 0.6).toFixed(3);
+            const temp = (Math.random() * 40 - 10).toFixed(1);
+            const type = types[Math.floor(Math.random() * types.length)];
+            const id = 'S' + String(i+1).padStart(4,'0');
+            const line = [id, lat, lon, proportion, type, temp, 'proportion_infected;temperature;location_type'].join('\t');
+            rows.push(line);
+          }
+          return rows.join('\n');
+        }
 
-// generate TSV string from random sample metadata
-function generateTSV(n = 120) {
-  const headers = ['sample_id','latitude','longitude','proportion_infected','location_type','temperature','color_by'];
-  const types = ['urban','rural','coastal','suburban'];
-  const rows = [headers.join('\t')];
-  const colorByList = ['proportion_infected;temperature;location_type'].join(';'); // example color_by value
-    for (let i = 0; i < n; i++) {
-        const lat = ((Math.random() * 140) - 70).toFixed(6);
-        const lon = ((Math.random() * 360) - 180).toFixed(6);
-        const proportion = (Math.random() * 0.6).toFixed(3);
-        const temp = (Math.random() * 40 - 10).toFixed(1);
-        const type = types[Math.floor(Math.random() * types.length)];
-        const id = 'S' + String(i+1).padStart(4,'0');
-        const line = [id, lat, lon, proportion, type, temp, 'proportion_infected;temperature;location_type'].join('\t');
-        rows.push(line);
-      }
-      return rows.join('\n');
-    }
-
-const tsv = generateTSV(150);
+    const tsv = generateTSV(150);
     // instantiate widget
     const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 });
 

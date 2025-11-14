@@ -11,7 +11,7 @@
     "url": "git+https://github.com/grunwaldlab/ps-leaflet-map-widget.git"
   },
   "license": "MIT",
-  "author": "Zachary Stephen Longiaru Foster, Claire Worthy",
+  "author": "Claire Worthy, Zachary Stephen Longiaru Foster",
   "type": "module",
   "main": "./dist/ps-leaflet-map-widget.umd.js",
   "module": "./dist/ps-leaflet-map-widget.es.js",

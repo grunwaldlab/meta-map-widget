@@ -1,20 +1,23 @@
-# `ps-leaflet-map-widget`: a Leaflet widget for use with the pathogensurveillance pipeline
-PSMapWidget is a javascript Leaflet widget used to map and analyze locations of samples and their corresponding information produced by the [pathogensurveillance](https://github.com/grunwaldlab/pathogensurveillance) pipeline. It is designed to work alongside the [PathoSurveilR](https://github.com/grunwaldlab/PathoSurveilR) repository, which produces similar output in R.
+# `meta-map-widget`: a self-contained map widget showing user-selectable metadata
+PSMapWidget is a javascript Leaflet widget used to map and analyze locations associated with user-defined metadata.
 
 ## Installation and Setup
-This repository can be accessed and downloaded from [Github](https://github.com/grunwaldlab/ps-leaflet-map-widget). To run offline, it will require node.js and NPM. It will also require an input TSV, which will be supplied at the beginning of the pipeline.
+This repository can be accessed and downloaded from [Github](https://github.com/grunwaldlab/ps-leaflet-map-widget). There is currently no distribution on NPM, but you can clone this repository and run `npm install`.
 
 ## Usage
-![alt text](<Screenshot 2025-11-13 212907.png>)
+![alt text](images/pie-chart-example.png)
 
-The widget once run with NPM appears as above. This creates an interactive HTML Leaflet widget (map data provided by OpenStreetMap) which displays the location source of each individual sample supplied from the pipeline. You can sort the data by choosing variables for color and size using the dropdowns, and the pie chart markers are representative of the sample data in each respective cluster (charts represent frequencies of the color variable, and the icon size is an average of values of the size variable). 
+The widget once run with NPM appears as above. This creates an interactive HTML Leaflet widget (map data provided by OpenStreetMap) which displays the location source of each individual datapoint. The color and size of map markers are determined by user-selected variables from the dropdown. Clusters of nearby points are automatically grouped and represented as pie charts, depending on zoom level. The pie chart markers are representative of the sample data in each respective cluster. Pie charts represent frequencies of the color variable, and the icon size is an average of values of the size variable. 
 
-![alt text](<Screenshot 2025-11-13 214104.png>)
+![alt text](images/popup-example.png)
 
-You can also choose to focus in on individual data points. Selecting an individual marker will bring up a popup with the values of all data associated with that sample.
+You can also choose to focus in on individual data points. Selecting an individual marker will bring up a popup with the values of all data associated with that location.
 
 ## License
-This work is subject to the [MIT license](https://github.com/grunwaldlab/metacoder/blob/master/LICENSE).
+This work is released under the [MIT license](https://github.com/grunwaldlab/metacoder/blob/master/LICENSE).
 
 ## Credits
-The following people contributed to ps-leaflet-map-widget: Zachary S.L. Foster, Claire E. Worthy.
+The following people contributed to ps-leaflet-map-widget: Claire E. Worthy and Zachary S.L. Foster. 
+
+## Funding
+This work was supported by USDA funding under the guidance of Dr. Niklaus Grunwald.

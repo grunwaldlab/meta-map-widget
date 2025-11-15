@@ -28,7 +28,7 @@
     "test": "vitest",
     "dev": "vite build --watch --mode development",
     "build": "vite build",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "vite build",
     "serve": "npx http-server -o demo/index.html"
   },
   "dependencies": {

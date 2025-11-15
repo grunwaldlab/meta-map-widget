@@ -9,10 +9,7 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.js'),
       name: 'PSMapWidget',
-      fileName: (format) => `ps-leaflet-map-widget.${format}.js`,
+      fileName: (format) => `ps-leaflet-map-widget.${format}.min.js`,
     },
   },
-  css: {
-    postcss: null
-  }
 });

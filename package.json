@@ -1,24 +1,24 @@
 {
-  "name": "ps-leaflet-map-widget",
+  "name": "meta-map-widget",
   "version": "0.1.0",
   "description": "Map widget for the PathogenSurviellance pipeline",
-  "homepage": "https://github.com/grunwaldlab/ps-leaflet-map-widget#readme",
+  "homepage": "https://github.com/grunwaldlab/meta-map-widget#readme",
   "bugs": {
-    "url": "https://github.com/grunwaldlab/ps-leaflet-map-widget/issues"
+    "url": "https://github.com/grunwaldlab/meta-map-widget/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/grunwaldlab/ps-leaflet-map-widget.git"
+    "url": "git+https://github.com/grunwaldlab/meta-map-widget.git"
   },
   "license": "MIT",
   "author": "Claire Worthy, Zachary Stephen Longiaru Foster",
   "type": "module",
-  "main": "./dist/ps-leaflet-map-widget.umd.js",
-  "module": "./dist/ps-leaflet-map-widget.es.js",
+  "main": "./dist/meta-map-widget.umd.js",
+  "module": "./dist/meta-map-widget.es.js",
   "exports": {
     ".": {
-      "import": "./dist/ps-leaflet-map-widget.es.js",
-      "require": "./dist/ps-leaflet-map-widget.umd.js"
+      "import": "./dist/meta-map-widget.es.js",
+      "require": "./dist/meta-map-widget.umd.js"
     }
   },
   "files": [
@@ -33,7 +33,8 @@
   },
   "dependencies": {
     "leaflet": "^1.9.4",
-    "leaflet.markercluster": "^1.5.3"
+    "leaflet.markercluster": "^1.5.3",
+    "terser": "^5.44.1"
   },
   "devDependencies": {
     "http-server": "^14.1.1",

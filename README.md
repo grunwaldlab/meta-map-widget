@@ -2,7 +2,7 @@
 PSMapWidget is a javascript Leaflet widget used to map and analyze locations associated with user-defined metadata.
 
 ## Installation and Setup
-This repository can be accessed and downloaded from [Github](https://github.com/grunwaldlab/ps-leaflet-map-widget). There is currently no distribution on NPM, but you can clone this repository and run `npm install`.
+This repository can be accessed and downloaded from [Github](https://github.com/grunwaldlab/meta-map-widget). There is currently no distribution on NPM, but you can clone this repository and run `npm install`.
 
 ## Usage
 ![alt text](images/pie-chart-example.png)
@@ -17,7 +17,7 @@ You can also choose to focus in on individual data points. Selecting an individu
 This work is released under the [MIT license](https://github.com/grunwaldlab/metacoder/blob/master/LICENSE).
 
 ## Credits
-The following people contributed to ps-leaflet-map-widget: Claire E. Worthy and Zachary S.L. Foster. 
+The following people contributed to meta-map-widget: Claire E. Worthy and Zachary S.L. Foster. 
 
 ## Funding
 This work was supported by USDA funding under the guidance of Dr. Niklaus Grunwald.

@@ -5,11 +5,21 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    minify: 'esbuild',
+    minify: 'terser',
     lib: {
       entry: resolve(__dirname, 'src/index.js'),
       name: 'PSMapWidget',
-      fileName: (format) => `ps-leaflet-map-widget.${format}.min.js`,
+      formats: ['iife', 'es', 'umd'],
+      fileName: (format) => `meta-map-widget.${format}.min.js`,
     },
-  },
+
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: true,
+        globals: {
+          leaflet: 'L'
+        }
+      }
+    }
+  }
 });

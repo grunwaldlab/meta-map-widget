@@ -8,9 +8,9 @@ import 'leaflet.markercluster';
 import leafletCSS from 'leaflet/dist/leaflet.css?inline';
 import markerClusterCSS from 'leaflet.markercluster/dist/MarkerCluster.css?inline';
 import markerClusterDefaultCSS from 'leaflet.markercluster/dist/MarkerCluster.Default.css?inline';
-injectCSS(leafletCSS, 'ps-leaflet-css');
-injectCSS(markerClusterCSS, 'ps-markercluster-css');
-injectCSS(markerClusterDefaultCSS, 'ps-markercluster-default-css');
+injectCSS(leafletCSS, 'leaflet-css');
+injectCSS(markerClusterCSS, 'markercluster-css');
+injectCSS(markerClusterDefaultCSS, 'markercluster-default-css');
 
 // Exported function: PSMapWidget(containerId, tsvData, opts)
 // - containerId: id of DOM element to mount
@@ -107,7 +107,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
 
     if (clusterGroup) {
       // create custom cluster icon that draws pie-chart + scales by avg size or count
-      clusterGroup.options.iconCreateFunction = function(cluster) {
+      clusterGroup.options.iconCreateFunction = function (cluster) {
         const childMarkers = cluster.getAllChildMarkers();
         // aggregate counts per category
         const counts = {};

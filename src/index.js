@@ -16,15 +16,12 @@ injectCSS(markerClusterDefaultCSS, 'markercluster-default-css');
 // - containerId: id of DOM element to mount
 // - tsvData: string containing TSV (header + rows)
 // - opts: { minRadius, maxRadius, viridisMaxCategories }
-export function PSMapWidget(containerId, tsvData, opts = {}) {
+export default function PSMapWidget(el, tsvData, opts = {}) {
   const config = {
     minRadius: opts.minRadius ?? 4,
     maxRadius: opts.maxRadius ?? 22,
     viridisMaxCategories: opts.viridisMaxCategories ?? 7
   };
-
-  const container = document.getElementById(containerId);
-  if (!container) throw new Error(`Container "${containerId}" not found`);
 
   // parse TSV into array of objects
   let data = parseMetadata(tsvData);
@@ -39,8 +36,43 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
   // pick colorVar: first colorByList entry that isn't sizeVar
   const colorVar = data.factors.find(c => c !== sizeVar) || null;
 
-  // setup map
-  const map = L.map(containerId, { preferCanvas: true }).setView([10, 0], 2);
+  // normalize el across htmlwidgets + browser + ES module
+  let container = el;
+
+  // case 1: string id
+  if (typeof container === 'string') {
+    container = document.getElementById(container);
+  }
+
+  // case 2: jQuery object
+  if (container && container.jquery) {
+    container = container[0];
+  }
+
+  // final safety check
+  if (!(container instanceof HTMLElement)) {
+    throw new Error('PSMapWidget: container element not found');
+  }
+
+  // clear previous content (important for htmlwidgets re-render)
+  container.innerHTML = '';
+
+  // create map div
+  const mapDiv = document.createElement('div');
+  mapDiv.style.width = '100%';
+  mapDiv.style.height = '100%';
+
+  // ensure the widget has height (htmlwidgets may not set it yet)
+  if (!container.style.height) {
+    container.style.height = '500px';
+  }
+
+  container.appendChild(mapDiv);
+
+  // initialize Leaflet on the child div
+  const map = L.map(mapDiv, { preferCanvas: true }).setView([10, 0], 2);
+
+  // base map
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
@@ -48,7 +80,7 @@ export function PSMapWidget(containerId, tsvData, opts = {}) {
 
   // build UI controls (two dropdowns) inside the container
   const controlBox = buildControls(container, numericCols, data.factors, sizeVar, colorVar, onSelectionChange);
-  container.prepend(controlBox);
+  container.insertBefore(controlBox, container.firstChild);
 
   // marker cluster group (requires Leaflet.markercluster included on page)
   const clusterGroup = (L.markerClusterGroup) ? L.markerClusterGroup({ chunkedLoading: true }) : null;

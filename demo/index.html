@@ -23,7 +23,7 @@
   <div id="map"></div>
 
   <script type="module">
-    import { PSMapWidget } from '../dist/meta-map-widget.es.min.js';
+    import PSMapWidget from '../dist/meta-map-widget.es.min.js';
 
     // generate TSV string from random sample metadata
     function generateTSV(n = 120) {
@@ -44,9 +44,10 @@
       return rows.join('\n');
     }
 
+    const el = document.getElementById('map');
     const tsv = generateTSV(150);
     // instantiate widget
-    const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 });
+    const widget = PSMapWidget(el, tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 });
 
     // optional: expose widget for debugging
     window.__PSMapWidget = widget;

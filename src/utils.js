@@ -4,17 +4,50 @@ export function parseMetadata(text) {
   // First parse the TSV
   const rows = parseTSV(text);
 
+  // Normalize latitude/longitude headers
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      const normalized = key.toLowerCase().replace(/[^a-z]/g, '');
+
+      if (['lat', 'latitude', 'y', 'decimalLatitude'].includes(normalized)) {
+        row.latitude ??= row[key];
+        if (key !== 'latitude') delete row[key];
+      }
+
+      if (['lon', 'long', 'longitude', 'x', 'decimalLongitude'].includes(normalized)) {
+        row.longitude ??= row[key];
+        if (key !== 'longitude') delete row[key];
+      }
+    }
+  }
+
   // Collect all unique color-by values
   const colorBySet = new Set();
-  const defaultCols = ['longitude', 'latitude', 'sample_id'];
-  for (const row of rows) {
-    const factors = String(row['color_by']).split(';')
-      .map(s => s.trim());
-    factors.forEach(col => colorBySet.add(col));
-    factors.push(...defaultCols);
-    Object.keys(row).forEach(k => {
-      if (!factors.includes(k)) {
-        row[k] = null;
+  const defaultCols = ['longitude', 'latitude', 'sample_id', 'color_by'];
+  const hasColorBy = rows.some(row => 'color_by' in row && row.color_by != null);
+
+  if (hasColorBy) {
+    // Existing behavior
+    for (const row of rows) {
+      const factors = String(row.color_by)
+        .split(';')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      factors.forEach(col => colorBySet.add(col));
+      factors.push(...defaultCols);
+
+      Object.keys(row).forEach(k => {
+        if (!factors.includes(k)) {
+          row[k] = null;
+        }
+      });
+    }
+  } else {
+    // 🔹 Infer factors from all columns
+    Object.keys(rows[0] ?? {}).forEach(col => {
+      if (!defaultCols.includes(col)) {
+        colorBySet.add(col);
       }
     });
   }

@@ -2,24 +2,26 @@
 
 export function parseMetadata(text) {
   // First parse the TSV
-  const rows = parseTSV(text);
+  let rows = parseTSV(text);
 
   // Normalize latitude/longitude headers
   for (const row of rows) {
     for (const key of Object.keys(row)) {
       const normalized = key.toLowerCase().replace(/[^a-z]/g, '');
 
-      if (['lat', 'latitude', 'y', 'decimalLatitude'].includes(normalized)) {
+      if (['lat', 'latitude', 'y', 'decimallatitude'].includes(normalized)) {
         row.latitude ??= row[key];
         if (key !== 'latitude') delete row[key];
       }
 
-      if (['lon', 'long', 'longitude', 'x', 'decimalLongitude'].includes(normalized)) {
+      if (['lon', 'long', 'longitude', 'x', 'decimallongitude'].includes(normalized)) {
         row.longitude ??= row[key];
         if (key !== 'longitude') delete row[key];
       }
     }
   }
+  // Remove rows with any null lat/lon data 
+  rows = rows.filter(row => row.longitude && row.latitude);
 
   // Collect all unique color-by values
   const colorBySet = new Set();

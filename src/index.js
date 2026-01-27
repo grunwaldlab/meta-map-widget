@@ -201,11 +201,18 @@ export default function PSMapWidget(el, tsvData, opts = {}) {
       markerLayer = L.layerGroup(markers).addTo(map);
     }
 
+    // zoom to markers
+    if (markers.length > 0) {
+      const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 12 });
+    }
+
     // update legend with scale objects
     updateLegend(container, selectedColorVar, selectedSizeVar, colorScale, sizeScale);
   }
   // initial render
   renderMarkers(sizeVar, colorVar);
+
 
   // selection change handler
   function onSelectionChange(selectedSize, selectedColor) {

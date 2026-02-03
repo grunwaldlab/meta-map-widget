@@ -4,23 +4,10 @@
 <head>
   <meta charset="utf-8">
   <title>PSMapWidget demo</title>
-  <style>
-    html,
-    body,
-    #map {
-      height: 100%;
-      margin: 0;
-      padding: 0
-    }
-
-    body {
-      height: 100vh
-    }
-  </style>
 </head>
 
 <body>
-  <div id="map"></div>
+  <div id="map" style="height: 500px;"></div>
 
   <script type="module">
     import PSMapWidget from '../dist/meta-map-widget.es.min.js';
@@ -45,10 +32,9 @@
       return rows.join('\n');
     }
 
-    const el = document.getElementById('map');
     const tsv = generateTSV(150);
     // instantiate widget
-    const widget = PSMapWidget(el, tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 });
+    const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 }, 'proportion_infected', 'temperature');
 
     // optional: expose widget for debugging
     window.__PSMapWidget = widget;

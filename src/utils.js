@@ -116,7 +116,6 @@ export function scaleRange(v, min, max, minR = 4, maxR = 22) {
 }
 
 export function injectCSS(css, id) {
-  if (document.getElementById(id)) return; // Already injected
   const style = document.createElement('style');
   style.id = id;
   style.textContent = css;

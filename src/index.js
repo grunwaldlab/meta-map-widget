@@ -16,7 +16,7 @@ injectCSS(markerClusterDefaultCSS, 'markercluster-default-css');
 // - containerId: id of DOM element to mount
 // - tsvData: string containing TSV (header + rows)
 // - opts: { minRadius, maxRadius, viridisMaxCategories }
-export default function PSMapWidget(el, tsvData, opts = {}) {
+export default function PSMapWidget(containerID, tsvData, opts = {}, defSizeFactor, defColorFactor) {
   const config = {
     minRadius: opts.minRadius ?? 4,
     maxRadius: opts.maxRadius ?? 22,
@@ -32,42 +32,40 @@ export default function PSMapWidget(el, tsvData, opts = {}) {
   numericCols = numericCols.filter(c => !['latitude', 'longitude'].includes(c));
 
   // pick sizeVar: first numeric in colorByList (per AGENTS)
-  const sizeVar = data.factors.find(c => numericCols.includes(c)) || null;
+  let sizeVar;
+  let colorVar;
+  if (defSizeFactor) {
+    sizeVar = defSizeFactor;
+  } else {
+    sizeVar = data.factors.find(c => numericCols.includes(c)) || null;
+  }
+
+  if (defColorFactor) {
+    colorVar = defColorFactor
+  } else {
+    colorVar = data.factors.find(c => c !== sizeVar) || null;
+  }
   // pick colorVar: first colorByList entry that isn't sizeVar
-  const colorVar = data.factors.find(c => c !== sizeVar) || null;
+  console.log(colorVar);
+  console.log(sizeVar);
 
-  // normalize el across htmlwidgets + browser + ES module
-  let container = el;
-
-  // case 1: string id
-  if (typeof container === 'string') {
-    container = document.getElementById(container);
-  }
-
-  // case 2: jQuery object
-  if (container && container.jquery) {
-    container = container[0];
-  }
-
-  // final safety check
-  if (!(container instanceof HTMLElement)) {
-    throw new Error('PSMapWidget: container element not found');
-  }
+  const container = document.getElementById(containerID);
 
   // clear previous content (important for htmlwidgets re-render)
   container.innerHTML = '';
+
+  // create div for all widget contents
+  const widgetDiv = document.createElement('div');
+  widgetDiv.style.width = '100%';
+  widgetDiv.style.height = '100%';
+  widgetDiv.style.position = 'relative'
+  container.appendChild(widgetDiv);
 
   // create map div
   const mapDiv = document.createElement('div');
   mapDiv.style.width = '100%';
   mapDiv.style.height = '100%';
-
-  // ensure the widget has height (htmlwidgets may not set it yet)
-  if (!container.style.height) {
-    container.style.height = '500px';
-  }
-
-  container.appendChild(mapDiv);
+  widgetDiv.appendChild(mapDiv);
 
   // initialize Leaflet on the child div
   const map = L.map(mapDiv, { preferCanvas: true }).setView([10, 0], 2);
@@ -79,8 +77,8 @@ export default function PSMapWidget(el, tsvData, opts = {}) {
   }).addTo(map);
 
   // build UI controls (two dropdowns) inside the container
-  const controlBox = buildControls(container, numericCols, data.factors, sizeVar, colorVar, onSelectionChange);
-  container.insertBefore(controlBox, container.firstChild);
+  const controlBox = buildControls(widgetDiv, numericCols, data.factors, sizeVar, colorVar, onSelectionChange);
+  widgetDiv.insertBefore(controlBox, widgetDiv.firstChild);
 
   // marker cluster group (requires Leaflet.markercluster included on page)
   const clusterGroup = (L.markerClusterGroup) ? L.markerClusterGroup({ chunkedLoading: true }) : null;
@@ -208,7 +206,7 @@ export default function PSMapWidget(el, tsvData, opts = {}) {
     }
 
     // update legend with scale objects
-    updateLegend(container, selectedColorVar, selectedSizeVar, colorScale, sizeScale);
+    updateLegend(widgetDiv, selectedColorVar, selectedSizeVar, colorScale, sizeScale);
   }
   // initial render
   renderMarkers(sizeVar, colorVar);
@@ -220,7 +218,6 @@ export default function PSMapWidget(el, tsvData, opts = {}) {
   }
 
   // return an object with a refresh function for external control
-  return {
-    refresh: () => renderMarkers(controlBox.querySelector('#ps-size-select').value || null, controlBox.querySelector('#ps-color-select').value || null)
-  };
+  // return {
+  //   refresh: () => renderMarkers(controlBox.querySelector('#ps-size-select').value || null, controlBox.querySelector('#ps-color-select').value || null)
 }

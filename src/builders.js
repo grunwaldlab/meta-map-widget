@@ -52,7 +52,7 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   const box = document.createElement('div');
   box.style.position = 'absolute';
   box.style.top = '10px';
-  box.style.left = '10px';
+  box.style.left = '50px';
   box.style.zIndex = 1000;
   box.style.background = 'white';
   box.style.padding = '8px';
@@ -66,7 +66,6 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   sizeLabel.style.marginRight = '6px';
 
   const sizeSelect = document.createElement('select');
-  sizeSelect.id = 'ps-size-select';
 
   const noneOpt = document.createElement('option');
   noneOpt.value = '';
@@ -90,7 +89,6 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   colorLabel.style.marginRight = '6px';
 
   const colorSelect = document.createElement('select');
-  colorSelect.id = 'ps-color-select';
 
   const noneOptColor = document.createElement('option');
   noneOptColor.value = '';
@@ -122,8 +120,8 @@ export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale
   const div = document.createElement('div');
   div.className = 'ps-legend';
   div.style.position = 'absolute';
-  div.style.right = '10px';
-  div.style.bottom = '10px';
+  div.style.right = '5px';
+  div.style.bottom = '20px';
   div.style.zIndex = 1000;
   div.style.background = 'white';
   div.style.padding = '8px';

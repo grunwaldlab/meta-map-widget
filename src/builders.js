@@ -3,13 +3,14 @@ import { formatTitle } from './utils.js';
 import L from "leaflet";
 
 export function buildPopupFromList(propsObj, list) {
-  // show all properties + the entries in color_by list (if present)
-  let html = '<table style="font-size:13px">';
+  let html = '<div style="max-height:150px;overflow-y:auto;overflow-x:hidden;">';
+  html += '<table style="font-size:10px">';
   for (const k of Object.keys(propsObj)) {
     if (k === 'color_by') continue;
     html += `<tr><th style="text-align:left;padding-right:8px">${formatTitle(k)}</th><td>${propsObj[k]}</td></tr>`;
   }
   html += '</table>';
+  html += '</div>';
   return html;
 }
 
@@ -169,8 +170,11 @@ export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale
         </div>`;
     } else {
       // Categorical legend
-      for (const category of colorScale.categories) {
+      for (let category of colorScale.categories) {
         const color = colorScale.getValue(category);
+        if (!category) {
+          category = "Missing Data";
+        }
         div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${color};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${category}</div>`;
       }
     }

@@ -86,10 +86,22 @@ export function formatTitle(name) {
   if (!name) return '';
   let out = String(name)
     .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')         // split camelCase
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
     .replace(/\s+/g, ' ')
     .trim();
 
-  return out.charAt(0).toUpperCase() + out.slice(1);
+  return out.split(' ')
+    .map(word => {
+      if (word.toLowerCase() === 'id') {
+        return 'ID';
+      }
+      if (word === word.toUpperCase() && word.length > 1) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
 }
 
 export function detectNumericColumns(rows, columns, threshold = 0.8) {

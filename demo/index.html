@@ -34,7 +34,7 @@
 
     const tsv = generateTSV(150);
     // instantiate widget
-    const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7 }, 'proportion_infected', 'temperature');
+    const widget = PSMapWidget('map', tsv, { minRadius: 5, maxRadius: 24, viridisMaxCategories: 7, idColumns: ['sample_id', 'temperature'], cartoApiKey: 'cb1_4w99_1_354a0498ebf7fb638b15f216' }, 'proportion_infected', 'temperature');
 
     // optional: expose widget for debugging
     window.__PSMapWidget = widget;

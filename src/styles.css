@@ -1,0 +1,370 @@
+.ps-widget {
+  color-scheme: light !important;
+  --ps-background: #fff;
+  --ps-text: #333;
+  --ps-border: #ddd;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: 2px solid #ddd;
+  border-radius: 5px;
+  background: var(--ps-background);
+  color: var(--ps-text);
+  font-family: sans-serif;
+  box-sizing: border-box;
+}
+
+.ps-toolbar {
+  position: relative;
+  z-index: 1000;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+.ps-toggle-container {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  padding: 5px 14px;
+}
+
+.ps-control-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ps-control-panel-toggle:hover {
+  opacity: 0.7;
+}
+
+.ps-toggle-arrow {
+  transition: transform 0.3s;
+}
+
+.ps-control-panel-toggle.collapsed .ps-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.ps-hamburger-icon {
+  color: #333;
+}
+
+.ps-collapsible-panel {
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+}
+
+.ps-collapsible-panel.ps-panel-collapsed {
+  max-height: 0;
+}
+
+.ps-tabs {
+  display: flex;
+  gap: 20px;
+  min-height: 30px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border-bottom: 2px solid #ddd;
+  background: #f5f5f5;
+  user-select: none;
+}
+
+.ps-tab {
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  font: 12px sans-serif;
+  transition: all 0.2s;
+}
+
+.ps-tab:hover {
+  color: #666;
+}
+
+.ps-tab.active {
+  border-bottom-color: #007bff;
+  color: #000;
+  font-weight: bold;
+}
+
+.ps-tab.active:hover {
+  color: #000;
+}
+
+.ps-controls-container {
+  min-height: 22px;
+  padding: 2px 8px;
+  border-bottom: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.ps-controls-container.ps-controls-hidden {
+  display: none;
+}
+
+.ps-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.ps-control-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.ps-control-label {
+  display: flex;
+  align-items: center;
+  color: #333;
+  font: 12px sans-serif;
+}
+
+.ps-select {
+  height: 20px;
+  max-width: min(240px, 42vw);
+  padding: 1px 2px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font: 12px sans-serif;
+}
+
+.ps-number-input {
+  box-sizing: border-box;
+  width: 72px;
+  height: 20px;
+  padding: 1px 3px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font: 12px sans-serif;
+}
+
+.ps-file-input {
+  max-width: min(260px, 54vw);
+  color: #333;
+  font: 12px sans-serif;
+}
+
+.ps-file-input::file-selector-button,
+.ps-button {
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  font: 12px sans-serif;
+}
+
+.ps-file-input::file-selector-button:hover,
+.ps-button:hover {
+  background: #f0f0f0;
+}
+
+.ps-button-primary {
+  border-color: #0069d9;
+  background: #007bff;
+  color: #fff;
+}
+
+.ps-button-primary:hover {
+  background: #0069d9;
+  color: #fff;
+}
+
+.ps-zoom-value {
+  color: #555;
+  font: 12px sans-serif;
+}
+
+.ps-add-data {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ps-zoom-group {
+  min-width: min(240px, 60vw);
+}
+
+.ps-zoom-slider {
+  width: min(180px, 36vw);
+  accent-color: #007bff;
+}
+
+.ps-manual-zoom-pan input {
+  margin: 0 2px 0 0;
+  accent-color: #007bff;
+}
+
+.ps-map {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.ps-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+.ps-legend {
+  position: absolute;
+  z-index: 1000;
+  right: 8px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(420px, calc(100% - 24px));
+  max-height: calc(100% - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #333;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  font: 12px sans-serif;
+}
+
+.ps-legend-section+.ps-legend-section {
+  padding-top: 7px;
+  border-top: 1px solid #ddd;
+}
+
+.ps-legend-title {
+  margin: 0 0 6px;
+  color: #333;
+  font: 600 12px sans-serif;
+}
+
+.ps-continuous-legend {
+  width: var(--ps-ramp-width);
+  max-width: 100%;
+  margin: 4px 0 8px;
+}
+
+.ps-gradient-bar {
+  height: 12px;
+  border: 1px solid #999;
+  background: var(--ps-gradient);
+}
+
+.ps-tick-row {
+  position: relative;
+  height: 26px;
+}
+
+.ps-tick {
+  position: absolute;
+  display: flex;
+  min-width: 24px;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+
+.ps-tick-mark {
+  width: 1px;
+  height: 4px;
+  background: #666;
+}
+
+.ps-tick-label {
+  margin-top: 1px;
+  color: #333;
+  font-size: 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ps-category-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.ps-category-swatch {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 1px solid #000;
+}
+
+.ps-size-items {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.ps-size-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ps-size-circle {
+  display: block;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  border-radius: 50%;
+}
+
+.ps-size-label {
+  font-size: 10px;
+  text-align: center;
+}
+
+.ps-map .leaflet-control-attribution {
+  font-size: 10px;
+}
+
+@media (max-width: 480px) {
+  .ps-tabs {
+    gap: 12px;
+  }
+
+  .ps-select {
+    max-width: min(180px, 38vw);
+  }
+
+  .ps-legend {
+    right: 6px;
+    bottom: 22px;
+    max-width: calc(100% - 20px);
+  }
+}

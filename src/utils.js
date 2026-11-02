@@ -1,8 +1,20 @@
 //data parsers and formatters
 
-export function parseMetadata(text) {
+export function parseMetadata(text, idColumn = 'sample_id') {
   // First parse the TSV
   let rows = parseTSV(text);
+
+  // Normalize the explicitly selected identifier field for downstream use.
+  if (idColumn && idColumn !== 'sample_id') {
+    rows = rows.map(row => {
+      if (!(idColumn in row)) {
+        throw new Error(`ID column not found in TSV: ${idColumn}`);
+      }
+      row.sample_id = row[idColumn];
+      delete row[idColumn];
+      return row;
+    });
+  }
 
   // Normalize latitude/longitude headers
   for (const row of rows) {
@@ -34,7 +46,7 @@ export function parseMetadata(text) {
       const factors = String(row.color_by)
         .split(';')
         .map(s => s.trim())
-        .filter(Boolean);
+        .filter(col => col && col !== idColumn);
 
       factors.forEach(col => colorBySet.add(col));
       factors.push(...defaultCols);
@@ -71,37 +83,61 @@ export function parseMetadata(text) {
   };
 }
 
-export function parseTSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  const headers = lines.shift().split('\t').map(h => h.trim());
-  return lines.map(line => {
-    const cols = line.split('\t');
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = cols[i] === undefined ? '' : cols[i]);
-    return obj;
-  });
+function parseTSVRecords(text) {
+  const records = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const character = text[i];
+
+    // Parse quoted cells and preserve tabs/newlines inside quotes.
+    if (character === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (inQuotes) {
+        inQuotes = false;
+      } else if (!field.trim()) {
+        inQuotes = true;
+      } else {
+        field += character;
+      }
+    } else if (character === '\t' && !inQuotes) {
+      row.push(field.trim());
+      field = '';
+    } else if ((character === '\n' || character === '\r') && !inQuotes) {
+      if (character === '\r' && text[i + 1] === '\n') i++;
+      row.push(field.trim());
+      if (row.some(value => value !== '')) records.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+
+  row.push(field.trim());
+  if (row.some(value => value !== '')) records.push(row);
+  return records;
 }
 
-export function formatTitle(name) {
-  if (!name) return '';
-  let out = String(name)
-    .replace(/_/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')         // split camelCase
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim();
+export function parseTSVHeaders(text) {
+  return parseTSVRecords(text)[0] ?? [];
+}
 
-  return out.split(' ')
-    .map(word => {
-      if (word.toLowerCase() === 'id') {
-        return 'ID';
-      }
-      if (word === word.toUpperCase() && word.length > 1) {
-        return word;
-      }
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
+export function parseTSV(text) {
+  const records = parseTSVRecords(text);
+  if (!records.length) return [];
+  const headers = records.shift().map(header => header.trim());
+  return records.map(columns => {
+    const record = {};
+    headers.forEach((header, index) => {
+      record[header] = columns[index] ?? '';
+    });
+    return record;
+  });
 }
 
 export function detectNumericColumns(rows, columns, threshold = 0.8) {

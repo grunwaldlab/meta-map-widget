@@ -1,5 +1,4 @@
 import { ContinuousColorScale } from './scales.js';
-import { formatTitle } from './utils.js';
 import L from "leaflet";
 
 export function buildPopupFromList(propsObj, list) {
@@ -7,7 +6,7 @@ export function buildPopupFromList(propsObj, list) {
   html += '<table style="font-size:10px">';
   for (const k of Object.keys(propsObj)) {
     if (k === 'color_by') continue;
-    html += `<tr><th style="text-align:left;padding-right:8px">${formatTitle(k)}</th><td>${propsObj[k]}</td></tr>`;
+    html += `<tr><th style="text-align:left;padding-right:8px">${k}</th><td>${propsObj[k]}</td></tr>`;
   }
   html += '</table>';
   html += '</div>';
@@ -51,22 +50,18 @@ export function createPieSvg(entries, radius) {
 
 export function buildControls(container, sizeColumns, colorColumns, initialSize, initialColor, onChange) {
   const box = document.createElement('div');
-  box.style.position = 'absolute';
-  box.style.top = '10px';
-  box.style.left = '50px';
-  box.style.zIndex = 1000;
-  box.style.background = 'white';
-  box.style.padding = '8px';
-  box.style.borderRadius = '6px';
-  box.style.boxShadow = '0 1px 4px rgba(0,0,0,0.2)';
-  box.style.fontSize = '13px';
+  box.className = 'ps-controls';
 
   // size select
+  const sizeGroup = document.createElement('div');
+  sizeGroup.className = 'ps-control-group';
   const sizeLabel = document.createElement('label');
+  sizeLabel.className = 'ps-control-label';
   sizeLabel.textContent = 'Size: ';
-  sizeLabel.style.marginRight = '6px';
 
   const sizeSelect = document.createElement('select');
+  sizeSelect.className = 'ps-select';
+  sizeSelect.setAttribute('aria-label', 'Size variable');
 
   const noneOpt = document.createElement('option');
   noneOpt.value = '';
@@ -76,7 +71,7 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   sizeColumns.forEach(c => {
     const o = document.createElement('option');
     o.value = c;
-    o.text = formatTitle(c);
+    o.text = c;
     if (c === initialSize) {
       o.selected = true;
     }
@@ -84,12 +79,15 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   });
 
   // color select
+  const colorGroup = document.createElement('div');
+  colorGroup.className = 'ps-control-group';
   const colorLabel = document.createElement('label');
+  colorLabel.className = 'ps-control-label';
   colorLabel.textContent = 'Color: ';
-  colorLabel.style.marginLeft = '8px';
-  colorLabel.style.marginRight = '6px';
 
   const colorSelect = document.createElement('select');
+  colorSelect.className = 'ps-select';
+  colorSelect.setAttribute('aria-label', 'Color variable');
 
   const noneOptColor = document.createElement('option');
   noneOptColor.value = '';
@@ -99,7 +97,7 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   colorColumns.forEach(c => {
     const o = document.createElement('option');
     o.value = c;
-    o.text = formatTitle(c);
+    o.text = c;
     if (c === initialColor) {
       o.selected = true;
     }
@@ -109,31 +107,29 @@ export function buildControls(container, sizeColumns, colorColumns, initialSize,
   sizeSelect.addEventListener('change', () => onChange(sizeSelect.value || null, colorSelect.value || null));
   colorSelect.addEventListener('change', () => onChange(sizeSelect.value || null, colorSelect.value || null));
 
-  box.appendChild(sizeLabel); box.appendChild(sizeSelect);
-  box.appendChild(colorLabel); box.appendChild(colorSelect);
+  sizeGroup.append(sizeLabel, sizeSelect);
+  colorGroup.append(colorLabel, colorSelect);
+  box.append(sizeGroup, colorGroup);
   return box;
 }
 
-export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale) {
+export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale, zoomSizeFactor = 1) {
   // remove existing legend if any
   const existing = container.querySelector('.ps-legend');
   if (existing) existing.remove();
   const div = document.createElement('div');
   div.className = 'ps-legend';
-  div.style.position = 'absolute';
-  div.style.right = '5px';
-  div.style.bottom = '20px';
-  div.style.zIndex = 1000;
-  div.style.background = 'white';
-  div.style.padding = '8px';
-  div.style.borderRadius = '6px';
-  div.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-  div.style.fontSize = '12px';
+  div.setAttribute('aria-label', 'Map legend');
 
   if (colorVar && colorScale) {
     const isContinuous = colorScale instanceof ContinuousColorScale;
 
-    div.innerHTML += `<div style="font-weight:600;margin-bottom:6px">${formatTitle(colorVar)}</div>`;
+    const colorSection = document.createElement('section');
+    colorSection.className = 'ps-legend-section';
+    const colorTitle = document.createElement('h3');
+    colorTitle.className = 'ps-legend-title';
+    colorTitle.textContent = colorVar;
+    colorSection.appendChild(colorTitle);
 
     if (isContinuous) {
       const grad = `linear-gradient(90deg, ${colorScale.colorsHex.join(',')})`;
@@ -156,18 +152,30 @@ export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale
         });
       }
 
-      div.innerHTML += `
-        <div style="width:${width}px;position:relative;margin:4px 0 16px">
-          <div style="width:100%;height:12px;background:${grad};border:1px solid #999"></div>
-          <div style="position:relative;width:100%;height:14px">
-            ${ticks.map(tick => `
-              <div style="position:absolute;left:${tick.position}px;transform:translateX(-50%)">
-                <div style="width:1px;height:4px;background:#666;margin:0 auto"></div>
-                <div style="font-size:10px;text-align:center;margin-top:1px">${tick.value}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>`;
+      const ramp = document.createElement('div');
+      ramp.className = 'ps-continuous-legend';
+      ramp.style.setProperty('--ps-gradient', grad);
+      ramp.style.setProperty('--ps-ramp-width', `${width}px`);
+      const gradientBar = document.createElement('div');
+      gradientBar.className = 'ps-gradient-bar';
+      ramp.appendChild(gradientBar);
+
+      const tickRow = document.createElement('div');
+      tickRow.className = 'ps-tick-row';
+      ticks.forEach(tick => {
+        const tickElement = document.createElement('div');
+        tickElement.className = 'ps-tick';
+        tickElement.style.left = `${tick.position}px`;
+        const tickMark = document.createElement('span');
+        tickMark.className = 'ps-tick-mark';
+        const tickLabel = document.createElement('span');
+        tickLabel.className = 'ps-tick-label';
+        tickLabel.textContent = tick.value;
+        tickElement.append(tickMark, tickLabel);
+        tickRow.appendChild(tickElement);
+      });
+      ramp.appendChild(tickRow);
+      colorSection.appendChild(ramp);
     } else {
       // Categorical legend
       for (let category of colorScale.categories) {
@@ -175,9 +183,18 @@ export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale
         if (!category) {
           category = "Missing Data";
         }
-        div.innerHTML += `<div style="display:flex;align-items:center;margin:4px 0"><i style="background:${color};width:12px;height:12px;display:inline-block;margin-right:6px"></i>${category}</div>`;
+        const item = document.createElement('div');
+        item.className = 'ps-category-item';
+        const swatch = document.createElement('span');
+        swatch.className = 'ps-category-swatch';
+        swatch.style.backgroundColor = color;
+        const label = document.createElement('span');
+        label.textContent = category;
+        item.append(swatch, label);
+        colorSection.appendChild(item);
       }
     }
+    div.appendChild(colorSection);
   }
 
   if (sizeVar && sizeScale) {
@@ -186,25 +203,38 @@ export function updateLegend(container, colorVar, sizeVar, colorScale, sizeScale
     const formatValue = v => v.toFixed(precision);
 
     const sizes = [
-      { value: sizeScale.dataMin, radius: sizeScale.sizeMin / 2 },
-      { value: (sizeScale.dataMin + sizeScale.dataMax) / 2, radius: (sizeScale.sizeMin + sizeScale.sizeMax) / 4 },
-      { value: sizeScale.dataMax, radius: sizeScale.sizeMax / 2 }
+      { value: sizeScale.dataMin, radius: sizeScale.getValue(sizeScale.dataMin) * zoomSizeFactor },
+      { value: (sizeScale.dataMin + sizeScale.dataMax) / 2, radius: sizeScale.getValue((sizeScale.dataMin + sizeScale.dataMax) / 2) * zoomSizeFactor },
+      { value: sizeScale.dataMax, radius: sizeScale.getValue(sizeScale.dataMax) * zoomSizeFactor }
     ];
 
-    div.innerHTML += `
-      <hr style="margin:6px 0">
-      <div style="font-weight:600;margin-bottom:6px">Size: ${formatTitle(sizeVar)}</div>
-      <div style="display:flex;align-items:flex-end;height:${sizeScale.sizeMax * 2 + 4}px;margin:4px 0">
-        ${sizes.map(size => `
-          <div style="display:flex;flex-direction:column;align-items:center;margin-right:12px">
-            <div style="width:${size.radius * 2}px;height:${size.radius * 2}px;border-radius:50%;border:1px solid #000;margin-bottom:4px"></div>
-            <div style="font-size:10px;text-align:center">${formatValue(size.value)}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+    const sizeSection = document.createElement('section');
+    sizeSection.className = 'ps-legend-section ps-size-legend';
+    const sizeTitle = document.createElement('h3');
+    sizeTitle.className = 'ps-legend-title';
+    sizeTitle.textContent = sizeVar;
+    sizeSection.appendChild(sizeTitle);
+
+    const sizeItems = document.createElement('div');
+    sizeItems.className = 'ps-size-items';
+    sizes.forEach(size => {
+      const item = document.createElement('div');
+      item.className = 'ps-size-item';
+      const circle = document.createElement('span');
+      circle.className = 'ps-size-circle';
+      const diameter = Math.round(size.radius * 2);
+      circle.style.width = `${diameter}px`;
+      circle.style.height = `${diameter}px`;
+      const label = document.createElement('span');
+      label.className = 'ps-size-label';
+      label.textContent = formatValue(size.value);
+      item.append(circle, label);
+      sizeItems.appendChild(item);
+    });
+    sizeSection.appendChild(sizeItems);
+    div.appendChild(sizeSection);
   }
 
   // Always append the legend to the map container
-  container.appendChild(div);
+  if (colorVar || sizeVar) container.appendChild(div);
 }
